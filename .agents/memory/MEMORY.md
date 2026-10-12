@@ -1,0 +1,1 @@
+- [Expo SDK 57 platform targets](expo-sdk-57-platforms.md) — Configure native splash screens via the plugin; current support floor is Android 7+ and iOS 16.4+.

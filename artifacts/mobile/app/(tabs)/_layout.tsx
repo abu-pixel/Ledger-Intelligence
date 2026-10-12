@@ -8,10 +8,6 @@ import { Tabs } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { SymbolView } from 'expo-symbols';
 
-// IMPORTANT: iOS 26 uses NativeTabs for native tabs with liquid glass support.
-// NativeTabs intentionally does NOT use custom design tokens — liquid glass
-// is a system-level appearance provided by iOS and cannot be overridden.
-// Custom brand colors are applied only on the ClassicTabLayout path (older iOS / Android / web).
 function NativeTabLayout() {
   return (
     <NativeTabs>
@@ -20,6 +16,30 @@ function NativeTabLayout() {
           sf={{ default: 'house', selected: 'house.fill' }}
         />
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="activity">
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'arrow.left.arrow.right', selected: 'arrow.left.arrow.right' }}
+        />
+        <NativeTabs.Trigger.Label>Activity</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="invoices">
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'doc.text', selected: 'doc.text.fill' }}
+        />
+        <NativeTabs.Trigger.Label>Invoices</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="reports">
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'chart.bar', selected: 'chart.bar.fill' }}
+        />
+        <NativeTabs.Trigger.Label>Reports</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="insights">
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'sparkles', selected: 'sparkles' }}
+        />
+        <NativeTabs.Trigger.Label>Insights</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -44,6 +64,7 @@ function ClassicTabLayout() {
           borderTopWidth: isWeb ? 1 : 0,
           borderTopColor: colors.border,
           elevation: 0,
+          paddingBottom: isWeb ? 0 : 8,
           ...(isWeb ? { height: 84 } : {}),
         },
         tabBarBackground: () =>
@@ -72,6 +93,54 @@ function ClassicTabLayout() {
               <SymbolView name="house" tintColor={color} size={24} />
             ) : (
               <Feather name="home" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="activity"
+        options={{
+          title: 'Activity',
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="arrow.left.arrow.right" tintColor={color} size={22} />
+            ) : (
+              <Feather name="activity" size={21} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="invoices"
+        options={{
+          title: 'Invoices',
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="doc.text" tintColor={color} size={22} />
+            ) : (
+              <Feather name="file-text" size={21} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="reports"
+        options={{
+          title: 'Reports',
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="chart.bar" tintColor={color} size={22} />
+            ) : (
+              <Feather name="bar-chart-2" size={21} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="insights"
+        options={{
+          title: 'Insights',
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="sparkles" tintColor={color} size={22} />
+            ) : (
+              <Feather name="zap" size={21} color={color} />
             ),
         }}
       />

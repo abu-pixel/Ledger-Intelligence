@@ -10,11 +10,45 @@
     "ios": {
       "supportsTablet": false
     },
-    "android": {},
+    "android": {
+      "blockedPermissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F5F6F1",
+          "image": "./assets/images/icon.png",
+          "imageWidth": 144
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Ledgerly to select a receipt photo to attach to an expense.",
+          "cameraPermission": "Allow Ledgerly to take a photo of a receipt for an expense.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          },
+          "ios": {
+            "deploymentTarget": "16.4"
+          }
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
