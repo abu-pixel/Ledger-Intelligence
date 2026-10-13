@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { ExpenseComposer, InvoiceComposer } from '@/components/Composers';
 import {
@@ -13,19 +14,14 @@ import {
   TransactionRow,
 } from '@/components/FinanceUI';
 import { useFinance } from '@/contexts/FinanceContext';
-
-const TAX_RATE = 0.25;
+import { formatLongToday, getCountryName } from '@/lib/localization';
 
 export default function HomeScreen() {
   const colors = useColors();
   const { state, storageError } = useFinance();
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  }).toUpperCase();
+  const today = formatLongToday(new Date(), state.countryCode);
 
   const totals = useMemo(() => {
     const now = new Date();
@@ -49,7 +45,6 @@ export default function HomeScreen() {
       income,
       expenses,
       balance,
-      estimate: Math.max(0, income - expenses) * TAX_RATE,
       recent: state.transactions.slice(0, 4),
       unpaidInvoices: state.invoices.filter((item) => item.status === 'unpaid'),
     };
@@ -61,9 +56,24 @@ export default function HomeScreen() {
     <AppPage>
       <BrandHeader
         trailing={
-          <View style={[styles.sampleBadge, { backgroundColor: colors.accent }]}>
-            <View style={[styles.sampleDot, { backgroundColor: colors.primary }]} />
-            <Text style={[styles.sampleBadgeText, { color: colors.accentForeground }]}>SAMPLE</Text>
+          <View style={styles.headerActions}>
+            <View style={[styles.sampleBadge, { backgroundColor: colors.accent }]}>
+              <View style={[styles.sampleDot, { backgroundColor: colors.primary }]} />
+              <Text style={[styles.sampleBadgeText, { color: colors.accentForeground }]}>
+                {state.sampleOnly ? 'SAMPLE' : 'LOCAL LEDGER'}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => router.push('/settings')}
+              accessibilityRole="button"
+              accessibilityLabel="Open settings"
+              style={({ pressed }) => [
+                styles.settingsButton,
+                { backgroundColor: colors.secondary, opacity: pressed ? 0.75 : 1 },
+              ]}
+            >
+              <Feather name="settings" size={17} color={colors.secondaryForeground} />
+            </Pressable>
           </View>
         }
       />
@@ -74,33 +84,41 @@ export default function HomeScreen() {
         <Text style={[styles.title, { color: colors.foreground }]}>Morgan.</Text>
       </View>
 
-      <Surface style={styles.balanceCard}>
+        <Surface style={[styles.balanceCard, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
         <View style={styles.balanceTop}>
-          <Text style={styles.balanceLabel}>Available cash</Text>
-          <View style={styles.balancePill}>
+          <Text style={[styles.balanceLabel, { color: colors.primaryForeground }]}>Available cash</Text>
+          <View style={[styles.balancePill, { backgroundColor: colors.accent }]}>
             <Feather name="trending-up" size={13} color={colors.accentForeground} />
             <Text style={[styles.balancePillText, { color: colors.accentForeground }]}>On track</Text>
           </View>
         </View>
-        <Text style={styles.balanceAmount}>{formatCurrency(totals.balance)}</Text>
-        <Text style={styles.balanceFootnote}>Across your sample business ledger</Text>
-        <View style={styles.balanceDivider} />
+        <Text style={[styles.balanceAmount, { color: colors.primaryForeground }]}>
+          {formatCurrency(totals.balance, state.currencyCode, state.countryCode)}
+        </Text>
+        <Text style={[styles.balanceFootnote, { color: colors.primaryForeground }]}>
+          {state.sampleOnly ? 'Across your sample business ledger' : 'Based on recorded transactions'}
+        </Text>
+        <View style={[styles.balanceDivider, { backgroundColor: colors.primaryForeground }]} />
         <View style={styles.balanceBottom}>
           <View>
-            <Text style={styles.balanceSmallLabel}>Income this month</Text>
-            <Text style={styles.balanceSmallValue}>{formatCurrency(totals.income)}</Text>
+            <Text style={[styles.balanceSmallLabel, { color: colors.primaryForeground }]}>Income this month</Text>
+            <Text style={[styles.balanceSmallValue, { color: colors.primaryForeground }]}>
+              {formatCurrency(totals.income, state.currencyCode, state.countryCode)}
+            </Text>
           </View>
-          <View style={styles.balanceBottomRule} />
+          <View style={[styles.balanceBottomRule, { backgroundColor: colors.primaryForeground }]} />
           <View>
-            <Text style={styles.balanceSmallLabel}>Expenses</Text>
-            <Text style={styles.balanceSmallValue}>{formatCurrency(totals.expenses)}</Text>
+            <Text style={[styles.balanceSmallLabel, { color: colors.primaryForeground }]}>Expenses</Text>
+            <Text style={[styles.balanceSmallValue, { color: colors.primaryForeground }]}>
+              {formatCurrency(totals.expenses, state.currencyCode, state.countryCode)}
+            </Text>
           </View>
         </View>
         <View style={[styles.balanceOrb, { backgroundColor: colors.accent }]} />
       </Surface>
 
       {storageError ? (
-        <View style={[styles.storageNotice, { backgroundColor: '#FBEDEA' }]}>
+        <View style={[styles.storageNotice, { backgroundColor: colors.dangerSurface }]}>
           <Feather name="alert-circle" size={15} color={colors.destructive} />
           <Text style={[styles.storageNoticeText, { color: colors.destructive }]}>{storageError}</Text>
         </View>
@@ -146,23 +164,27 @@ export default function HomeScreen() {
               {totals.unpaidInvoices.length} invoices awaiting payment
             </Text>
             <Text style={[styles.signalDetail, { color: colors.mutedForeground }]}>
-              {formatCurrency(outstanding)} outstanding in this sample
+              {formatCurrency(outstanding, state.currencyCode, state.countryCode)} outstanding
             </Text>
           </View>
         </View>
         <View style={styles.signalRow}>
-          <View style={[styles.signalIcon, { backgroundColor: '#E9EEE7' }]}>
+          <View style={[styles.signalIcon, { backgroundColor: colors.secondary }]}>
             <Feather name="shield" size={17} color={colors.primary} />
           </View>
           <View style={styles.signalCopy}>
-            <Text style={[styles.signalTitle, { color: colors.foreground }]}>Estimated tax set-aside</Text>
+            <Text style={[styles.signalTitle, { color: colors.foreground }]}>
+              VAT profile · {getCountryName(state.countryCode)}
+            </Text>
             <Text style={[styles.signalDetail, { color: colors.mutedForeground }]}>
-              {formatCurrency(totals.estimate)} at a simple 25% of this month’s net
+              {state.vatRatePercent === null
+                ? 'No verified default rate is set. Add a rate in settings if you know it.'
+                : `${state.vatRatePercent}% reference rate configured; it is not used as an income-tax estimate.`}
             </Text>
           </View>
         </View>
         <Text style={[styles.disclaimer, { color: colors.mutedForeground }]}>
-          Planning estimate only — not tax advice or a filing calculation.
+          VAT setup is informational only. Eligibility, exemptions, filing, and other taxes are not calculated.
         </Text>
       </View>
 
@@ -196,6 +218,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  settingsButton: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   sampleDot: { width: 6, height: 6, borderRadius: 99 },
   sampleBadgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.8 },
   greeting: { gap: 1 },
@@ -203,14 +227,11 @@ const styles = StyleSheet.create({
   title: { fontSize: 31, lineHeight: 35, fontWeight: '700', letterSpacing: -1.1 },
   balanceCard: {
     overflow: 'hidden',
-    backgroundColor: '#194B3B',
-    borderColor: '#194B3B',
     padding: 20,
   },
   balanceTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  balanceLabel: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.78)' },
+  balanceLabel: { fontSize: 13, fontWeight: '600', opacity: 0.78 },
   balancePill: {
-    backgroundColor: '#D7EE9B',
     paddingHorizontal: 9,
     paddingVertical: 6,
     borderRadius: 99,
@@ -219,13 +240,13 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   balancePillText: { fontSize: 10, fontWeight: '700' },
-  balanceAmount: { color: '#FFFFFF', fontSize: 36, lineHeight: 43, fontWeight: '700', letterSpacing: -1.3, marginTop: 15 },
-  balanceFootnote: { color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 3 },
-  balanceDivider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.23)', marginTop: 19, marginBottom: 15 },
+  balanceAmount: { fontSize: 36, lineHeight: 43, fontWeight: '700', letterSpacing: -1.3, marginTop: 15 },
+  balanceFootnote: { fontSize: 11, marginTop: 3, opacity: 0.72 },
+  balanceDivider: { height: StyleSheet.hairlineWidth, opacity: 0.23, marginTop: 19, marginBottom: 15 },
   balanceBottom: { flexDirection: 'row', alignItems: 'center', gap: 17 },
-  balanceBottomRule: { width: StyleSheet.hairlineWidth, height: 32, backgroundColor: 'rgba(255,255,255,0.28)' },
-  balanceSmallLabel: { color: 'rgba(255,255,255,0.66)', fontSize: 10 },
-  balanceSmallValue: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', marginTop: 5 },
+  balanceBottomRule: { width: StyleSheet.hairlineWidth, height: 32, opacity: 0.28 },
+  balanceSmallLabel: { fontSize: 10, opacity: 0.74 },
+  balanceSmallValue: { fontSize: 14, fontWeight: '700', marginTop: 5 },
   balanceOrb: { width: 125, height: 125, borderRadius: 99, position: 'absolute', top: -81, right: -48, opacity: 0.1 },
   quickActions: { flexDirection: 'row', gap: 10 },
   sectionBlock: { gap: 11 },

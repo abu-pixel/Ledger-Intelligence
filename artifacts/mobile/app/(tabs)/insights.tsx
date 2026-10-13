@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import {
   AppPage,
   BrandHeader,
@@ -58,8 +59,8 @@ export default function InsightsScreen() {
         : `${findings.unpaid.length} invoice${findings.unpaid.length === 1 ? '' : 's'} still open`,
       detail: findings.overdue.length
         ? `Review ${findings.overdue.map((invoice) => invoice.client).join(', ')}.`
-        : `${formatCurrency(findings.unpaid.reduce((sum, invoice) => sum + invoice.amount, 0))} is awaiting payment.`,
-      background: findings.overdue.length ? '#FBEDEA' : colors.accent,
+        : `${formatCurrency(findings.unpaid.reduce((sum, invoice) => sum + invoice.amount, 0), state.currencyCode, state.countryCode)} is awaiting payment.`,
+      background: findings.overdue.length ? colors.dangerSurface : colors.accent,
     },
     {
       icon: 'pie-chart',
@@ -75,9 +76,9 @@ export default function InsightsScreen() {
       tone: colors.primary,
       title: 'Largest recorded expense',
       detail: findings.topExpense
-        ? `${findings.topExpense.title} · ${formatCurrency(findings.topExpense.amount)}`
+        ? `${findings.topExpense.title} · ${formatCurrency(findings.topExpense.amount, state.currencyCode, state.countryCode)}`
         : 'No expenses have been entered yet.',
-      background: '#E9EEE7',
+      background: colors.secondary,
     },
   ] as const;
 
@@ -86,18 +87,29 @@ export default function InsightsScreen() {
       <BrandHeader eyebrow="LOCAL LEDGER SIGNALS" />
       <PageHeading title="Insights" subtitle="A quick read of the numbers you’ve recorded." />
 
-      <Surface style={[styles.aiNotice, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
-        <View style={styles.aiNoticeTop}>
-          <View style={[styles.aiMark, { backgroundColor: colors.accent }]}>
-            <Feather name="zap" size={17} color={colors.primary} />
+      <Pressable
+        onPress={() => router.push('/assistant')}
+        accessibilityRole="button"
+        accessibilityLabel="Open the accounting assistant"
+        style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+      >
+        <Surface style={[styles.aiNotice, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+          <View style={styles.aiNoticeTop}>
+            <View style={[styles.aiMark, { backgroundColor: colors.accent }]}>
+              <Feather name="zap" size={17} color={colors.accentForeground} />
+            </View>
+            <Text style={[styles.aiNoticeLabel, { color: colors.primaryForeground }]}>AI ACCOUNTING ASSISTANT</Text>
           </View>
-          <Text style={styles.aiNoticeLabel}>AI ACCOUNTING ASSISTANT</Text>
-        </View>
-        <Text style={styles.aiTitle}>Not connected yet</Text>
-        <Text style={styles.aiBody}>
-          The AI assistant is paused until an AI provider is configured. This screen shows simple indicators calculated on this device instead.
-        </Text>
-      </Surface>
+          <Text style={[styles.aiTitle, { color: colors.primaryForeground }]}>Ask about your numbers</Text>
+          <Text style={[styles.aiBody, { color: colors.primaryForeground }]}>
+            Get general guidance from an AI assistant using a limited summary of your ledger.
+          </Text>
+          <View style={styles.assistantLink}>
+            <Text style={[styles.assistantLinkText, { color: colors.primaryForeground }]}>Open assistant</Text>
+            <Feather name="arrow-up-right" size={15} color={colors.primaryForeground} />
+          </View>
+        </Surface>
+      </Pressable>
 
       <View style={styles.findingBlock}>
         <SectionTitle title="Business signals" />
@@ -119,8 +131,12 @@ export default function InsightsScreen() {
           <Feather name="briefcase" size={17} color={colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.cashLabel, { color: colors.mutedForeground }]}>Sample cash balance</Text>
-          <Text style={[styles.cashValue, { color: colors.foreground }]}>{formatCurrency(findings.cash)}</Text>
+          <Text style={[styles.cashLabel, { color: colors.mutedForeground }]}>
+            {state.sampleOnly ? 'Sample cash balance' : 'Recorded cash balance'}
+          </Text>
+          <Text style={[styles.cashValue, { color: colors.foreground }]}>
+            {formatCurrency(findings.cash, state.currencyCode, state.countryCode)}
+          </Text>
         </View>
       </Surface>
 
@@ -142,9 +158,11 @@ const styles = StyleSheet.create({
   aiNotice: { padding: 19 },
   aiNoticeTop: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   aiMark: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  aiNoticeLabel: { fontSize: 9, color: 'rgba(255,255,255,0.74)', fontWeight: '800', letterSpacing: 1.15 },
-  aiTitle: { fontSize: 21, fontWeight: '700', letterSpacing: -0.5, color: '#FFFFFF', marginTop: 15 },
-  aiBody: { color: 'rgba(255,255,255,0.78)', fontSize: 12, lineHeight: 18, marginTop: 6 },
+  aiNoticeLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1.15, opacity: 0.74 },
+  aiTitle: { fontSize: 21, fontWeight: '700', letterSpacing: -0.5, marginTop: 15 },
+  aiBody: { fontSize: 12, lineHeight: 18, marginTop: 6, opacity: 0.78 },
+  assistantLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
+  assistantLinkText: { fontSize: 12, fontWeight: '700' },
   findingBlock: { gap: 11 },
   signalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15 },
   signalIcon: { width: 39, height: 39, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },

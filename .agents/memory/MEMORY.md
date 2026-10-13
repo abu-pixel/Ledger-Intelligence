@@ -1,1 +1,2 @@
 - [Expo SDK 57 platform targets](expo-sdk-57-platforms.md) — Configure native splash screens via the plugin; current support floor is Android 7+ and iOS 16.4+.
+- [Localization and AI boundaries](localization-and-ai-boundaries.md) — Ethiopia is first; broad country choice must not imply unverified tax compliance or silently convert existing books.

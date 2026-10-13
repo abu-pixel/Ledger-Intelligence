@@ -8,6 +8,7 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
+import type { ThemeId } from '@/constants/colors';
 
 export type TransactionKind = 'income' | 'expense';
 
@@ -33,10 +34,17 @@ type FinanceState = {
   openingCash: number;
   transactions: Transaction[];
   invoices: Invoice[];
+  countryCode: string;
+  currencyCode: string;
+  themeId: ThemeId;
+  vatRatePercent: number | null;
+  aiConsentAccepted: boolean;
+  sampleOnly: boolean;
 };
 
 type NewTransaction = Omit<Transaction, 'id' | 'date'> & { date?: string };
 type NewInvoice = Omit<Invoice, 'id' | 'status'>;
+type UpdateCountry = (countryCode: string, suggestedCurrencyCode: string | null) => void;
 
 type FinanceContextValue = {
   state: FinanceState;
@@ -45,6 +53,11 @@ type FinanceContextValue = {
   addTransaction: (transaction: NewTransaction) => void;
   addInvoice: (invoice: NewInvoice) => void;
   markInvoicePaid: (invoiceId: string) => void;
+  updateCountry: UpdateCountry;
+  updateCurrency: (currencyCode: string) => void;
+  updateTheme: (themeId: ThemeId) => void;
+  updateVatRate: (rate: number | null) => void;
+  setAiConsentAccepted: (accepted: boolean) => void;
   resetSampleWorkspace: () => void;
 };
 
@@ -71,6 +84,12 @@ function createId(prefix: string) {
 function createSampleState(): FinanceState {
   return {
     openingCash: 36500,
+    countryCode: 'ET',
+    currencyCode: 'ETB',
+    themeId: 'forest',
+    vatRatePercent: 15,
+    aiConsentAccepted: false,
+    sampleOnly: true,
     transactions: [
       {
         id: 'sample-1',
@@ -171,6 +190,97 @@ function createSampleState(): FinanceState {
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isTransaction(value: unknown): value is Transaction {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === 'string' &&
+    typeof value.title === 'string' &&
+    typeof value.category === 'string' &&
+    typeof value.date === 'string' &&
+    Number.isFinite(new Date(value.date).getTime()) &&
+    typeof value.amount === 'number' &&
+    Number.isFinite(value.amount) &&
+    value.amount >= 0 &&
+    (value.kind === 'income' || value.kind === 'expense') &&
+    (value.receiptUri === undefined || typeof value.receiptUri === 'string')
+  );
+}
+
+function isInvoice(value: unknown): value is Invoice {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === 'string' &&
+    typeof value.client === 'string' &&
+    typeof value.amount === 'number' &&
+    Number.isFinite(value.amount) &&
+    value.amount >= 0 &&
+    typeof value.dueDate === 'string' &&
+    Number.isFinite(new Date(value.dueDate).getTime()) &&
+    (value.status === 'paid' || value.status === 'unpaid')
+  );
+}
+
+function defaultVatRate(countryCode: string) {
+  return countryCode === 'ET' ? 15 : null;
+}
+
+function migrateSavedState(value: unknown): FinanceState {
+  if (!isRecord(value)) throw new Error('Saved workspace data is incomplete.');
+  if (
+    typeof value.openingCash !== 'number' ||
+    !Number.isFinite(value.openingCash) ||
+    !Array.isArray(value.transactions) ||
+    !value.transactions.every(isTransaction) ||
+    !Array.isArray(value.invoices) ||
+    !value.invoices.every(isInvoice)
+  ) {
+    throw new Error('Saved workspace data is incomplete.');
+  }
+
+  const countryCode =
+    typeof value.countryCode === 'string' && /^[A-Z]{2}$/.test(value.countryCode)
+      ? value.countryCode
+      : 'US';
+  const currencyCode =
+    typeof value.currencyCode === 'string' && /^[A-Z]{3}$/.test(value.currencyCode)
+      ? value.currencyCode
+      : 'USD';
+  const themeId = ['forest', 'ocean', 'plum', 'sunset', 'midnight'].includes(
+    String(value.themeId),
+  )
+    ? (value.themeId as ThemeId)
+    : 'forest';
+  const vatRatePercent =
+    value.vatRatePercent === null ||
+    (typeof value.vatRatePercent === 'number' &&
+      Number.isFinite(value.vatRatePercent) &&
+      value.vatRatePercent >= 0 &&
+      value.vatRatePercent <= 100)
+      ? value.vatRatePercent
+      : defaultVatRate(countryCode);
+  const inferredSampleOnly =
+    value.openingCash === 36500 &&
+    value.transactions.every((item) => item.id.startsWith('sample-')) &&
+    value.invoices.every((item) => /^inv-\d+$/.test(item.id));
+
+  return {
+    openingCash: value.openingCash,
+    transactions: value.transactions,
+    invoices: value.invoices,
+    countryCode,
+    currencyCode,
+    themeId,
+    vatRatePercent,
+    aiConsentAccepted: value.aiConsentAccepted === true,
+    sampleOnly:
+      typeof value.sampleOnly === 'boolean' ? value.sampleOnly : inferredSampleOnly,
+  };
+}
+
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<FinanceState>(createSampleState);
   const [isReady, setIsReady] = useState(false);
@@ -182,16 +292,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       try {
         const saved = await AsyncStorage.getItem(STORAGE_KEY);
         if (!saved) return;
-        const parsed = JSON.parse(saved) as FinanceState;
-        if (
-          typeof parsed.openingCash === 'number' &&
-          Array.isArray(parsed.transactions) &&
-          Array.isArray(parsed.invoices)
-        ) {
-          if (active) setState(parsed);
-        } else {
-          throw new Error('Saved workspace data is incomplete.');
-        }
+        const parsed = migrateSavedState(JSON.parse(saved) as unknown);
+        if (active) setState(parsed);
       } catch {
         if (active) {
           setStorageError('Saved data could not be loaded. Your sample workspace is still available.');
@@ -222,6 +324,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     };
     setState((current) => ({
       ...current,
+      sampleOnly: false,
       transactions: [newTransaction, ...current.transactions],
     }));
   }, []);
@@ -229,6 +332,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const addInvoice = useCallback((invoice: NewInvoice) => {
     setState((current) => ({
       ...current,
+      sampleOnly: false,
       invoices: [{ ...invoice, id: createId('inv'), status: 'unpaid' }, ...current.invoices],
     }));
   }, []);
@@ -239,6 +343,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       if (!invoice || invoice.status === 'paid') return current;
       return {
         ...current,
+        sampleOnly: false,
         invoices: current.invoices.map((item) =>
           item.id === invoiceId ? { ...item, status: 'paid' } : item,
         ),
@@ -257,8 +362,46 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const updateCountry = useCallback<UpdateCountry>((countryCode, suggestedCurrencyCode) => {
+    if (!/^[A-Z]{2}$/.test(countryCode)) return;
+    setState((current) => ({
+      ...current,
+      countryCode,
+      currencyCode:
+        current.sampleOnly && suggestedCurrencyCode
+          ? suggestedCurrencyCode
+          : current.currencyCode,
+      vatRatePercent: defaultVatRate(countryCode),
+    }));
+  }, []);
+
+  const updateCurrency = useCallback((currencyCode: string) => {
+    if (!/^[A-Z]{3}$/.test(currencyCode)) return;
+    setState((current) => ({ ...current, currencyCode }));
+  }, []);
+
+  const updateTheme = useCallback((themeId: ThemeId) => {
+    setState((current) => ({ ...current, themeId }));
+  }, []);
+
+  const updateVatRate = useCallback((rate: number | null) => {
+    if (rate !== null && (!Number.isFinite(rate) || rate < 0 || rate > 100)) return;
+    setState((current) => ({ ...current, vatRatePercent: rate }));
+  }, []);
+
+  const setAiConsentAccepted = useCallback((accepted: boolean) => {
+    setState((current) => ({ ...current, aiConsentAccepted: accepted }));
+  }, []);
+
   const resetSampleWorkspace = useCallback(() => {
-    setState(createSampleState());
+    setState((current) => ({
+      ...createSampleState(),
+      countryCode: current.countryCode,
+      currencyCode: current.currencyCode,
+      themeId: current.themeId,
+      vatRatePercent: current.vatRatePercent,
+      aiConsentAccepted: current.aiConsentAccepted,
+    }));
   }, []);
 
   const value = useMemo(
@@ -269,9 +412,27 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       addTransaction,
       addInvoice,
       markInvoicePaid,
+      updateCountry,
+      updateCurrency,
+      updateTheme,
+      updateVatRate,
+      setAiConsentAccepted,
       resetSampleWorkspace,
     }),
-    [state, isReady, storageError, addTransaction, addInvoice, markInvoicePaid, resetSampleWorkspace],
+    [
+      state,
+      isReady,
+      storageError,
+      addTransaction,
+      addInvoice,
+      markInvoicePaid,
+      updateCountry,
+      updateCurrency,
+      updateTheme,
+      updateVatRate,
+      setAiConsentAccepted,
+      resetSampleWorkspace,
+    ],
   );
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;

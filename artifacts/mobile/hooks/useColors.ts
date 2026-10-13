@@ -1,5 +1,6 @@
 import { useColorScheme } from 'react-native';
-import colors from '@/constants/colors';
+import { themePalettes } from '@/constants/colors';
+import { useFinance } from '@/contexts/FinanceContext';
 
 /**
  * Returns the design tokens for the current color scheme.
@@ -15,9 +16,9 @@ import colors from '@/constants/colors';
  */
 export function useColors() {
   const scheme = useColorScheme();
-  const palette =
-    scheme === 'dark' && 'dark' in colors
-      ? (colors as Record<string, typeof colors.light>).dark
-      : colors.light;
-  return { ...palette, radius: colors.radius };
+  const { state } = useFinance();
+  const definition = themePalettes[state.themeId] ?? themePalettes.forest;
+  const isDark = state.themeId === 'midnight' || scheme === 'dark';
+  const palette = isDark ? definition.dark : definition.light;
+  return { ...palette, radius: 16 };
 }

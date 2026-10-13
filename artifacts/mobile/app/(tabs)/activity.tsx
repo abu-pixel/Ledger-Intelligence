@@ -66,7 +66,9 @@ export default function ActivityScreen() {
         </View>
         <View style={styles.summaryRight}>
           <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>Spend</Text>
-          <Text style={[styles.summarySpend, { color: colors.foreground }]}>{formatCurrency(spending)}</Text>
+          <Text style={[styles.summarySpend, { color: colors.foreground }]}>
+            {formatCurrency(spending, state.currencyCode, state.countryCode)}
+          </Text>
         </View>
       </Surface>
 

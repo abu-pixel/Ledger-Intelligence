@@ -12,12 +12,9 @@ import {
 } from '@/components/FinanceUI';
 import { useColors } from '@/hooks/useColors';
 import { useFinance } from '@/contexts/FinanceContext';
+import { formatMonth } from '@/lib/localization';
 
 type MonthFlow = { label: string; income: number; expense: number };
-
-function monthLabel(date: Date) {
-  return date.toLocaleDateString('en-US', { month: 'short' });
-}
 
 export default function ReportsScreen() {
   const colors = useColors();
@@ -32,7 +29,7 @@ export default function ReportsScreen() {
         return date.getMonth() === month.getMonth() && date.getFullYear() === month.getFullYear();
       });
       flows.push({
-        label: monthLabel(month),
+        label: formatMonth(month, state.countryCode),
         income: items.filter((item) => item.kind === 'income').reduce((sum, item) => sum + item.amount, 0),
         expense: items.filter((item) => item.kind === 'expense').reduce((sum, item) => sum + item.amount, 0),
       });
@@ -54,7 +51,6 @@ export default function ReportsScreen() {
       flows,
       currentIncome: current.income,
       currentExpense: current.expense,
-      taxEstimate: Math.max(0, current.income - current.expense) * 0.25,
       net: totalIncome - totalExpenses,
       totalExpenses,
       categories: Object.entries(expenseGroups).sort((a, b) => b[1] - a[1]),
@@ -72,8 +68,8 @@ export default function ReportsScreen() {
       <PageHeading title="Reports" subtitle="A clear view of how the business is moving." />
 
       <View style={styles.statRow}>
-        <MiniStat label="Income this month" amount={formatCurrency(report.currentIncome)} icon="arrow-down-left" />
-        <MiniStat label="Spend this month" amount={formatCurrency(report.currentExpense)} icon="arrow-up-right" />
+        <MiniStat label="Income this month" amount={formatCurrency(report.currentIncome, state.currencyCode, state.countryCode)} icon="arrow-down-left" />
+        <MiniStat label="Spend this month" amount={formatCurrency(report.currentExpense, state.currencyCode, state.countryCode)} icon="arrow-up-right" />
       </View>
 
       <View style={styles.reportBlock}>
@@ -81,7 +77,9 @@ export default function ReportsScreen() {
         <Surface style={styles.chartCard}>
           <View style={styles.chartHeading}>
             <View>
-              <Text style={[styles.chartMain, { color: colors.foreground }]}>{formatCurrency(report.currentIncome - report.currentExpense)}</Text>
+              <Text style={[styles.chartMain, { color: colors.foreground }]}>
+                {formatCurrency(report.currentIncome - report.currentExpense, state.currencyCode, state.countryCode)}
+              </Text>
               <Text style={[styles.chartSub, { color: colors.mutedForeground }]}>net movement this month</Text>
             </View>
             <View style={[styles.legend, { backgroundColor: colors.muted }]}>
@@ -135,7 +133,9 @@ export default function ReportsScreen() {
                 <View key={category} style={styles.categoryRow}>
                   <View style={styles.categoryTop}>
                     <Text style={[styles.categoryName, { color: colors.foreground }]}>{category}</Text>
-                    <Text style={[styles.categoryAmount, { color: colors.foreground }]}>{formatCurrency(amount)}</Text>
+                    <Text style={[styles.categoryAmount, { color: colors.foreground }]}>
+                      {formatCurrency(amount, state.currencyCode, state.countryCode)}
+                    </Text>
                   </View>
                   <View style={[styles.track, { backgroundColor: colors.muted }]}>
                     <View style={[styles.fill, { width: `${Math.round(share * 100)}%`, backgroundColor: colors.primary }]} />
@@ -157,10 +157,16 @@ export default function ReportsScreen() {
               <Feather name="shield" size={17} color={colors.primary} />
             </View>
             <View style={styles.snapshotCopy}>
-              <Text style={[styles.snapshotTitle, { color: colors.foreground }]}>Simple tax set-aside</Text>
-              <Text style={[styles.snapshotNote, { color: colors.mutedForeground }]}>25% of this month’s net</Text>
+              <Text style={[styles.snapshotTitle, { color: colors.foreground }]}>Configured VAT reference</Text>
+              <Text style={[styles.snapshotNote, { color: colors.mutedForeground }]}>
+                {state.vatRatePercent === null
+                  ? 'No verified default rate'
+                  : 'Profile rate only · no filing calculation'}
+              </Text>
             </View>
-            <Text style={[styles.snapshotAmount, { color: colors.foreground }]}>{formatCurrency(report.taxEstimate)}</Text>
+            <Text style={[styles.snapshotAmount, { color: colors.foreground }]}>
+              {state.vatRatePercent === null ? '—' : `${state.vatRatePercent}%`}
+            </Text>
           </View>
           <View style={[styles.snapshotDivider, { backgroundColor: colors.border }]} />
           <View style={styles.snapshotRow}>
@@ -175,7 +181,7 @@ export default function ReportsScreen() {
           </View>
         </Surface>
         <Text style={[styles.disclaimer, { color: colors.mutedForeground }]}>
-          Estimates use only entries in this sample ledger. Tax rates, deductions, payroll obligations, and filing rules vary. Consult a qualified tax professional.
+          Totals use this device’s ledger. Tax eligibility, deductions, filing, payroll obligations, and local rules are not calculated.
         </Text>
       </View>
     </AppPage>

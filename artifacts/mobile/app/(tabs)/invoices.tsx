@@ -17,12 +17,13 @@ import { useFinance, type Invoice } from '@/contexts/FinanceContext';
 
 function InvoiceCard({ invoice, onMarkPaid }: { invoice: Invoice; onMarkPaid: () => void }) {
   const colors = useColors();
+  const { state } = useFinance();
   const isPaid = invoice.status === 'paid';
   const overdue = !isPaid && new Date(invoice.dueDate).getTime() < Date.now();
   return (
     <Surface style={styles.invoiceCard}>
       <View style={styles.invoiceTop}>
-        <View style={[styles.invoiceIcon, { backgroundColor: isPaid ? '#EAF2E8' : colors.accent }]}>
+        <View style={[styles.invoiceIcon, { backgroundColor: isPaid ? colors.successSurface : colors.accent }]}>
           <Feather name={isPaid ? 'check' : 'file-text'} size={17} color={colors.primary} />
         </View>
         <View style={styles.invoiceIdentity}>
@@ -30,17 +31,21 @@ function InvoiceCard({ invoice, onMarkPaid }: { invoice: Invoice; onMarkPaid: ()
             {invoice.client}
           </Text>
           <Text style={[styles.dueDate, { color: overdue ? colors.destructive : colors.mutedForeground }]}>
-            {isPaid ? `Paid · ${formatShortDate(invoice.dueDate)}` : `${overdue ? 'Overdue · ' : 'Due · '}${formatShortDate(invoice.dueDate)}`}
+            {isPaid
+              ? `Paid · ${formatShortDate(invoice.dueDate, state.countryCode)}`
+              : `${overdue ? 'Overdue · ' : 'Due · '}${formatShortDate(invoice.dueDate, state.countryCode)}`}
           </Text>
         </View>
-        <View style={[styles.statusPill, { backgroundColor: isPaid ? '#EAF2E8' : '#F5F0E4' }]}>
-          <Text style={[styles.statusText, { color: isPaid ? colors.primary : '#8D6933' }]}>
+        <View style={[styles.statusPill, { backgroundColor: isPaid ? colors.successSurface : colors.warningSurface }]}>
+          <Text style={[styles.statusText, { color: isPaid ? colors.primary : colors.mutedForeground }]}>
             {isPaid ? 'PAID' : 'OPEN'}
           </Text>
         </View>
       </View>
       <View style={[styles.invoiceBottom, { borderTopColor: colors.border }]}>
-        <Text style={[styles.invoiceAmount, { color: colors.foreground }]}>{formatCurrency(invoice.amount)}</Text>
+        <Text style={[styles.invoiceAmount, { color: colors.foreground }]}>
+          {formatCurrency(invoice.amount, state.currencyCode, state.countryCode)}
+        </Text>
         {isPaid ? (
           <Text style={[styles.paidMessage, { color: colors.primary }]}>Received</Text>
         ) : (
@@ -74,13 +79,17 @@ export default function InvoicesScreen() {
 
       <Surface style={[styles.dueCard, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
         <View style={styles.dueTop}>
-          <Text style={styles.dueLabel}>Outstanding</Text>
-          <View style={[styles.dueIcon, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
-            <Feather name="arrow-down-left" size={17} color="#FFFFFF" />
+          <Text style={[styles.dueLabel, { color: colors.primaryForeground }]}>Outstanding</Text>
+        <View style={[styles.dueIcon, { backgroundColor: colors.primaryForeground, opacity: 0.88 }]}>
+          <Feather name="arrow-down-left" size={17} color={colors.primary} />
           </View>
         </View>
-        <Text style={styles.dueAmount}>{formatCurrency(dueTotal)}</Text>
-        <Text style={styles.dueFoot}>{unpaid.length} open invoice{unpaid.length === 1 ? '' : 's'}</Text>
+      <Text style={[styles.dueAmount, { color: colors.primaryForeground }]}>
+        {formatCurrency(dueTotal, state.currencyCode, state.countryCode)}
+      </Text>
+      <Text style={[styles.dueFoot, { color: colors.primaryForeground }]}>
+        {unpaid.length} open invoice{unpaid.length === 1 ? '' : 's'}
+      </Text>
       </Surface>
 
       <PrimaryButton title="Create an invoice" icon="plus" onPress={() => setComposerOpen(true)} testID="create-invoice" />
@@ -95,7 +104,7 @@ export default function InvoicesScreen() {
               onMarkPaid={() =>
                 Alert.alert(
                   'Mark invoice as paid?',
-                  `This records ${formatCurrency(invoice.amount)} as income and updates your cash-flow report.`,
+                   `This records ${formatCurrency(invoice.amount, state.currencyCode, state.countryCode)} as income and updates your cash-flow report.`,
                   [
                     { text: 'Cancel', style: 'cancel' },
                     { text: 'Mark paid', onPress: () => markInvoicePaid(invoice.id) },
@@ -131,10 +140,10 @@ export default function InvoicesScreen() {
 const styles = StyleSheet.create({
   dueCard: { padding: 20 },
   dueTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  dueLabel: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.78)' },
+  dueLabel: { fontSize: 12, fontWeight: '600', opacity: 0.78 },
   dueIcon: { width: 35, height: 35, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  dueAmount: { color: '#FFFFFF', fontSize: 33, fontWeight: '700', letterSpacing: -1, marginTop: 9 },
-  dueFoot: { color: 'rgba(255,255,255,0.72)', fontSize: 12, marginTop: 3 },
+  dueAmount: { fontSize: 33, fontWeight: '700', letterSpacing: -1, marginTop: 9 },
+  dueFoot: { fontSize: 12, marginTop: 3, opacity: 0.72 },
   invoiceSection: { gap: 12 },
   invoiceCard: { padding: 15 },
   invoiceTop: { flexDirection: 'row', alignItems: 'center', gap: 11 },

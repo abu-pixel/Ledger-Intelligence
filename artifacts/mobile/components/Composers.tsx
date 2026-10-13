@@ -18,6 +18,7 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 import { useColors } from '@/hooks/useColors';
 import { addDaysToDate, useFinance } from '@/contexts/FinanceContext';
 import { PrimaryButton } from '@/components/FinanceUI';
+import { getCurrencySymbol, parseLocalizedAmount } from '@/lib/localization';
 
 const EXPENSE_CATEGORIES = ['Supplies', 'Rent', 'Software', 'Travel', 'Payroll', 'Other'];
 
@@ -76,7 +77,7 @@ export function ExpenseComposer({
   onClose: () => void;
 }) {
   const colors = useColors();
-  const { addTransaction } = useFinance();
+  const { addTransaction, state } = useFinance();
   const [vendor, setVendor] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
@@ -124,7 +125,7 @@ export function ExpenseComposer({
   }
 
   function saveExpense() {
-    const parsedAmount = Number(amount);
+    const parsedAmount = parseLocalizedAmount(amount, state.countryCode);
     if (!vendor.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       setError('Enter a description and an amount greater than zero.');
       return;
@@ -160,7 +161,9 @@ export function ExpenseComposer({
 
       <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Amount</Text>
       <View style={[styles.amountInputRow, { backgroundColor: colors.card, borderColor: colors.input }]}>
-        <Text style={[styles.currencyPrefix, { color: colors.mutedForeground }]}>$</Text>
+        <Text style={[styles.currencyPrefix, { color: colors.mutedForeground }]}>
+          {getCurrencySymbol(state.currencyCode, state.countryCode)}
+        </Text>
         <TextInput
           value={amount}
           onChangeText={setAmount}
@@ -247,7 +250,7 @@ export function InvoiceComposer({
   onClose: () => void;
 }) {
   const colors = useColors();
-  const { addInvoice } = useFinance();
+  const { addInvoice, state } = useFinance();
   const [client, setClient] = useState('');
   const [amount, setAmount] = useState('');
   const [dueInDays, setDueInDays] = useState('14');
@@ -262,7 +265,7 @@ export function InvoiceComposer({
   }
 
   function saveInvoice() {
-    const parsedAmount = Number(amount);
+    const parsedAmount = parseLocalizedAmount(amount, state.countryCode);
     const days = Number(dueInDays);
     if (!client.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       setError('Enter a client name and an amount greater than zero.');
@@ -300,7 +303,9 @@ export function InvoiceComposer({
 
       <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Amount due</Text>
       <View style={[styles.amountInputRow, { backgroundColor: colors.card, borderColor: colors.input }]}>
-        <Text style={[styles.currencyPrefix, { color: colors.mutedForeground }]}>$</Text>
+        <Text style={[styles.currencyPrefix, { color: colors.mutedForeground }]}>
+          {getCurrencySymbol(state.currencyCode, state.countryCode)}
+        </Text>
         <TextInput
           value={amount}
           onChangeText={setAmount}

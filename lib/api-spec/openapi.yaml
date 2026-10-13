@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: ai
+    description: AI-assisted accounting guidance
 paths:
   /healthz:
     get:
@@ -24,6 +26,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /ai/status:
+    get:
+      operationId: getAiStatus
+      tags: [ai]
+      summary: Get AI assistant availability
+      description: Reports whether the server has an AI provider configured without exposing credentials.
+      responses:
+        "200":
+          description: AI provider configuration status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiStatus"
+  /ai/accounting-guidance:
+    post:
+      operationId: askAccountingAssistant
+      tags: [ai]
+      summary: Ask the accounting assistant
+      description: Provides general guidance using a question and limited aggregate ledger totals.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountingGuidanceRequest"
+      responses:
+        "200":
+          description: Assistant response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountingGuidanceResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: AI service is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +85,77 @@ components:
           type: string
       required:
         - status
+    AiStatus:
+      type: object
+      additionalProperties: false
+      required: [available]
+      properties:
+        available:
+          type: boolean
+    AccountingGuidanceRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - question
+        - countryCode
+        - countryName
+        - currencyCode
+        - cashBalance
+        - currentMonthIncome
+        - currentMonthExpense
+        - outstandingInvoiceAmount
+        - unpaidInvoiceCount
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 1200
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        countryName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        currencyCode:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        cashBalance:
+          type: number
+          minimum: -1000000000000
+          maximum: 1000000000000
+        currentMonthIncome:
+          type: number
+          minimum: 0
+          maximum: 1000000000000
+        currentMonthExpense:
+          type: number
+          minimum: 0
+          maximum: 1000000000000
+        outstandingInvoiceAmount:
+          type: number
+          minimum: 0
+          maximum: 1000000000000
+        unpaidInvoiceCount:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    AccountingGuidanceResponse:
+      type: object
+      additionalProperties: false
+      required: [answer]
+      properties:
+        answer:
+          type: string
+          minLength: 1
+          maxLength: 5000
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: string
+          minLength: 1
+          maxLength: 200
 

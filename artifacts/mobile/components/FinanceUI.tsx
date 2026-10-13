@@ -8,20 +8,22 @@ import {
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
-import type { Transaction } from '@/contexts/FinanceContext';
+import { useFinance, type Transaction } from '@/contexts/FinanceContext';
+import { formatDate, formatMoney } from '@/lib/localization';
 
-export function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: Number.isInteger(amount) ? 0 : 2,
-  }).format(amount);
+export function formatCurrency(
+  amount: number,
+  currencyCode = 'USD',
+  countryCode = 'US',
+) {
+  return formatMoney(amount, currencyCode, countryCode);
 }
 
-export function formatShortDate(isoDate: string) {
-  return new Date(isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+export function formatShortDate(isoDate: string, countryCode = 'US') {
+  return formatDate(isoDate, countryCode);
 }
 
 export function AppPage({ children }: { children: ReactNode }) {
@@ -53,6 +55,19 @@ export function BrandHeader({
   trailing?: ReactNode;
 }) {
   const colors = useColors();
+  const headerAction = trailing ?? (
+    <Pressable
+      onPress={() => router.push('/settings')}
+      accessibilityRole="button"
+      accessibilityLabel="Open settings"
+      style={({ pressed }) => [
+        styles.headerSettings,
+        { backgroundColor: colors.secondary, opacity: pressed ? 0.75 : 1 },
+      ]}
+    >
+      <Feather name="settings" size={17} color={colors.secondaryForeground} />
+    </Pressable>
+  );
   return (
     <View style={styles.brandRow}>
       <View style={styles.brandBlock}>
@@ -64,7 +79,7 @@ export function BrandHeader({
           <Text style={[styles.eyebrow, { color: colors.mutedForeground }]}>{eyebrow}</Text>
         </View>
       </View>
-      {trailing}
+      {headerAction}
     </View>
   );
 }
@@ -188,6 +203,7 @@ const categoryIcons: Record<string, React.ComponentProps<typeof Feather>['name']
 
 export function TransactionRow({ transaction }: { transaction: Transaction }) {
   const colors = useColors();
+  const { state } = useFinance();
   const isIncome = transaction.kind === 'income';
   const icon = categoryIcons[transaction.category] ?? 'credit-card';
   return (
@@ -195,7 +211,7 @@ export function TransactionRow({ transaction }: { transaction: Transaction }) {
       <View
         style={[
           styles.transactionIcon,
-          { backgroundColor: isIncome ? '#EAF2E8' : colors.muted },
+          { backgroundColor: isIncome ? colors.successSurface : colors.muted },
         ]}
       >
         <Feather name={icon} size={17} color={isIncome ? colors.primary : colors.mutedForeground} />
@@ -205,11 +221,11 @@ export function TransactionRow({ transaction }: { transaction: Transaction }) {
           {transaction.title}
         </Text>
         <Text style={[styles.transactionMeta, { color: colors.mutedForeground }]}>
-          {transaction.category} · {formatShortDate(transaction.date)}
+          {transaction.category} · {formatShortDate(transaction.date, state.countryCode)}
         </Text>
       </View>
       <Text style={[styles.transactionAmount, { color: isIncome ? colors.primary : colors.foreground }]}>
-        {isIncome ? '+' : '−'}{formatCurrency(transaction.amount)}
+        {isIncome ? '+' : '−'}{formatCurrency(transaction.amount, state.currencyCode, state.countryCode)}
       </Text>
     </View>
   );
@@ -246,6 +262,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     minHeight: 48,
+  },
+  headerSettings: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   brandBlock: {
     flexDirection: 'row',
