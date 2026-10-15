@@ -53,6 +53,8 @@ type FinanceContextValue = {
   addTransaction: (transaction: NewTransaction) => void;
   addInvoice: (invoice: NewInvoice) => void;
   markInvoicePaid: (invoiceId: string) => void;
+  deleteTransaction: (transactionId: string) => void;
+  deleteInvoice: (invoiceId: string) => void;
   updateCountry: UpdateCountry;
   updateCurrency: (currencyCode: string) => void;
   updateTheme: (themeId: ThemeId) => void;
@@ -362,6 +364,22 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const deleteTransaction = useCallback((transactionId: string) => {
+    setState((current) => ({
+      ...current,
+      sampleOnly: false,
+      transactions: current.transactions.filter((item) => item.id !== transactionId),
+    }));
+  }, []);
+
+  const deleteInvoice = useCallback((invoiceId: string) => {
+    setState((current) => ({
+      ...current,
+      sampleOnly: false,
+      invoices: current.invoices.filter((item) => item.id !== invoiceId),
+    }));
+  }, []);
+
   const updateCountry = useCallback<UpdateCountry>((countryCode, suggestedCurrencyCode) => {
     if (!/^[A-Z]{2}$/.test(countryCode)) return;
     setState((current) => ({
@@ -412,6 +430,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       addTransaction,
       addInvoice,
       markInvoicePaid,
+      deleteTransaction,
+      deleteInvoice,
       updateCountry,
       updateCurrency,
       updateTheme,
@@ -426,6 +446,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       addTransaction,
       addInvoice,
       markInvoicePaid,
+      deleteTransaction,
+      deleteInvoice,
       updateCountry,
       updateCurrency,
       updateTheme,

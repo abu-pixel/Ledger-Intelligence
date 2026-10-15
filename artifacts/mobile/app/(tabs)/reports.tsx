@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import {
   AppPage,
@@ -11,8 +11,24 @@ import {
   Surface,
 } from '@/components/FinanceUI';
 import { useColors } from '@/hooks/useColors';
-import { useFinance } from '@/contexts/FinanceContext';
+import { useFinance, type Transaction } from '@/contexts/FinanceContext';
 import { formatMonth } from '@/lib/localization';
+
+function exportLedgerCsv(transactions: Transaction[]) {
+  const header = 'ID,Date,Kind,Category,Title,Amount\n';
+  const rows = transactions
+    .map(
+      (t) =>
+        `"${t.id}","${t.date}","${t.kind}","${t.category}","${t.title.replace(/"/g, '""')}",${t.amount}`,
+    )
+    .join('\n');
+  const csvContent = header + rows;
+  Alert.alert(
+    'Ledger CSV Data',
+    `Exported ${transactions.length} transactions:\n\n${csvContent.slice(0, 250)}${csvContent.length > 250 ? '...' : ''}`,
+    [{ text: 'Close', style: 'cancel' }],
+  );
+}
 
 type MonthFlow = { label: string; income: number; expense: number };
 
@@ -65,7 +81,21 @@ export default function ReportsScreen() {
   return (
     <AppPage>
       <BrandHeader eyebrow="SAMPLE BUSINESS" />
-      <PageHeading title="Reports" subtitle="A clear view of how the business is moving." />
+      <PageHeading
+        title="Reports"
+        subtitle="A clear view of how the business is moving."
+        trailing={
+          <Pressable
+            onPress={() => exportLedgerCsv(state.transactions)}
+            accessibilityRole="button"
+            accessibilityLabel="Export ledger CSV"
+            style={({ pressed }) => [styles.exportButton, { backgroundColor: colors.secondary, opacity: pressed ? 0.75 : 1 }]}
+          >
+            <Feather name="download" size={16} color={colors.secondaryForeground} />
+            <Text style={[styles.exportText, { color: colors.secondaryForeground }]}>CSV</Text>
+          </Pressable>
+        }
+      />
 
       <View style={styles.statRow}>
         <MiniStat label="Income this month" amount={formatCurrency(report.currentIncome, state.currencyCode, state.countryCode)} icon="arrow-down-left" />
@@ -189,6 +219,15 @@ export default function ReportsScreen() {
 }
 
 const styles = StyleSheet.create({
+  exportButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  exportText: { fontSize: 12, fontWeight: '700' },
   statRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   reportBlock: { gap: 11 },
   chartCard: { padding: 17 },

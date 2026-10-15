@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
-import { ExpenseComposer, InvoiceComposer } from '@/components/Composers';
+import { ExpenseComposer, IncomeComposer, InvoiceComposer } from '@/components/Composers';
 import {
   AppPage,
   BrandHeader,
@@ -20,6 +20,7 @@ export default function HomeScreen() {
   const colors = useColors();
   const { state, storageError } = useFinance();
   const [expenseOpen, setExpenseOpen] = useState(false);
+  const [incomeOpen, setIncomeOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const today = formatLongToday(new Date(), state.countryCode);
 
@@ -127,16 +128,16 @@ export default function HomeScreen() {
       <View style={styles.quickActions}>
         <PrimaryButton
           title="Add expense"
-          icon="plus"
+          icon="minus-circle"
           onPress={() => setExpenseOpen(true)}
           testID="quick-add-expense"
         />
         <PrimaryButton
-          title="New invoice"
-          icon="file-plus"
+          title="Record income"
+          icon="arrow-down-left"
           secondary
-          onPress={() => setInvoiceOpen(true)}
-          testID="quick-new-invoice"
+          onPress={() => setIncomeOpen(true)}
+          testID="quick-record-income"
         />
       </View>
 
@@ -204,6 +205,7 @@ export default function HomeScreen() {
       </Pressable>
 
       <ExpenseComposer visible={expenseOpen} onClose={() => setExpenseOpen(false)} />
+      <IncomeComposer visible={incomeOpen} onClose={() => setIncomeOpen(false)} />
       <InvoiceComposer visible={invoiceOpen} onClose={() => setInvoiceOpen(false)} />
     </AppPage>
   );

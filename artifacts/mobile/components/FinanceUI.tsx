@@ -201,7 +201,13 @@ const categoryIcons: Record<string, React.ComponentProps<typeof Feather>['name']
   'Professional services': 'file-text',
 };
 
-export function TransactionRow({ transaction }: { transaction: Transaction }) {
+export function TransactionRow({
+  transaction,
+  onDelete,
+}: {
+  transaction: Transaction;
+  onDelete?: () => void;
+}) {
   const colors = useColors();
   const { state } = useFinance();
   const isIncome = transaction.kind === 'income';
@@ -227,6 +233,16 @@ export function TransactionRow({ transaction }: { transaction: Transaction }) {
       <Text style={[styles.transactionAmount, { color: isIncome ? colors.primary : colors.foreground }]}>
         {isIncome ? '+' : '−'}{formatCurrency(transaction.amount, state.currencyCode, state.countryCode)}
       </Text>
+      {onDelete ? (
+        <Pressable
+          onPress={onDelete}
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${transaction.title}`}
+          style={({ pressed }) => [styles.deleteButton, { opacity: pressed ? 0.6 : 1 }]}
+        >
+          <Feather name="trash-2" size={15} color={colors.mutedForeground} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -373,6 +389,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+  },
+  deleteButton: {
+    padding: 6,
+    marginLeft: 4,
   },
   miniStat: {
     flex: 1,

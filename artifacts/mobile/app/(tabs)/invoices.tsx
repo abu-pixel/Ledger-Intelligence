@@ -15,7 +15,17 @@ import {
 } from '@/components/FinanceUI';
 import { useFinance, type Invoice } from '@/contexts/FinanceContext';
 
-function InvoiceCard({ invoice, onMarkPaid }: { invoice: Invoice; onMarkPaid: () => void }) {
+function InvoiceCard({
+  invoice,
+  onMarkPaid,
+  onDelete,
+  onShare,
+}: {
+  invoice: Invoice;
+  onMarkPaid: () => void;
+  onDelete: () => void;
+  onShare: () => void;
+}) {
   const colors = useColors();
   const { state } = useFinance();
   const isPaid = invoice.status === 'paid';
@@ -46,19 +56,37 @@ function InvoiceCard({ invoice, onMarkPaid }: { invoice: Invoice; onMarkPaid: ()
         <Text style={[styles.invoiceAmount, { color: colors.foreground }]}>
           {formatCurrency(invoice.amount, state.currencyCode, state.countryCode)}
         </Text>
-        {isPaid ? (
-          <Text style={[styles.paidMessage, { color: colors.primary }]}>Received</Text>
-        ) : (
+        <View style={styles.invoiceActions}>
           <Pressable
-            onPress={onMarkPaid}
+            onPress={onShare}
             accessibilityRole="button"
-            accessibilityLabel={`Mark ${invoice.client} invoice paid`}
-            style={({ pressed }) => [styles.markPaidButton, { backgroundColor: colors.primary, opacity: pressed ? 0.82 : 1 }]}
+            accessibilityLabel={`Share invoice for ${invoice.client}`}
+            style={({ pressed }) => [styles.iconActionButton, { backgroundColor: colors.secondary, opacity: pressed ? 0.7 : 1 }]}
           >
-            <Feather name="check" size={13} color={colors.primaryForeground} />
-            <Text style={[styles.markPaidText, { color: colors.primaryForeground }]}>Mark paid</Text>
+            <Feather name="share-2" size={14} color={colors.secondaryForeground} />
           </Pressable>
-        )}
+          <Pressable
+            onPress={onDelete}
+            accessibilityRole="button"
+            accessibilityLabel={`Delete invoice for ${invoice.client}`}
+            style={({ pressed }) => [styles.iconActionButton, { backgroundColor: colors.muted, opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Feather name="trash-2" size={14} color={colors.mutedForeground} />
+          </Pressable>
+          {isPaid ? (
+            <Text style={[styles.paidMessage, { color: colors.primary }]}>Received</Text>
+          ) : (
+            <Pressable
+              onPress={onMarkPaid}
+              accessibilityRole="button"
+              accessibilityLabel={`Mark ${invoice.client} invoice paid`}
+              style={({ pressed }) => [styles.markPaidButton, { backgroundColor: colors.primary, opacity: pressed ? 0.82 : 1 }]}
+            >
+              <Feather name="check" size={13} color={colors.primaryForeground} />
+              <Text style={[styles.markPaidText, { color: colors.primaryForeground }]}>Mark paid</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
     </Surface>
   );
@@ -66,11 +94,27 @@ function InvoiceCard({ invoice, onMarkPaid }: { invoice: Invoice; onMarkPaid: ()
 
 export default function InvoicesScreen() {
   const colors = useColors();
-  const { state, markInvoicePaid } = useFinance();
+  const { state, markInvoicePaid, deleteInvoice } = useFinance();
   const [composerOpen, setComposerOpen] = useState(false);
   const unpaid = useMemo(() => state.invoices.filter((item) => item.status === 'unpaid'), [state.invoices]);
   const paid = useMemo(() => state.invoices.filter((item) => item.status === 'paid'), [state.invoices]);
   const dueTotal = unpaid.reduce((sum, item) => sum + item.amount, 0);
+
+  function confirmDeleteInvoice(inv: Invoice) {
+    Alert.alert(
+      'Delete invoice?',
+      `Are you sure you want to delete the invoice for "${inv.client}" (${formatCurrency(inv.amount, state.currencyCode, state.countryCode)})?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteInvoice(inv.id) },
+      ],
+    );
+  }
+
+  function shareInvoice(inv: Invoice) {
+    const text = `Invoice summary for ${inv.client}\nAmount: ${formatCurrency(inv.amount, state.currencyCode, state.countryCode)}\nDue Date: ${formatShortDate(inv.dueDate, state.countryCode)}\nStatus: ${inv.status.toUpperCase()}`;
+    Alert.alert('Invoice Summary', text, [{ text: 'Close', style: 'cancel' }]);
+  }
 
   return (
     <AppPage>
@@ -80,16 +124,16 @@ export default function InvoicesScreen() {
       <Surface style={[styles.dueCard, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
         <View style={styles.dueTop}>
           <Text style={[styles.dueLabel, { color: colors.primaryForeground }]}>Outstanding</Text>
-        <View style={[styles.dueIcon, { backgroundColor: colors.primaryForeground, opacity: 0.88 }]}>
-          <Feather name="arrow-down-left" size={17} color={colors.primary} />
+          <View style={[styles.dueIcon, { backgroundColor: colors.primaryForeground, opacity: 0.88 }]}>
+            <Feather name="arrow-down-left" size={17} color={colors.primary} />
           </View>
         </View>
-      <Text style={[styles.dueAmount, { color: colors.primaryForeground }]}>
-        {formatCurrency(dueTotal, state.currencyCode, state.countryCode)}
-      </Text>
-      <Text style={[styles.dueFoot, { color: colors.primaryForeground }]}>
-        {unpaid.length} open invoice{unpaid.length === 1 ? '' : 's'}
-      </Text>
+        <Text style={[styles.dueAmount, { color: colors.primaryForeground }]}>
+          {formatCurrency(dueTotal, state.currencyCode, state.countryCode)}
+        </Text>
+        <Text style={[styles.dueFoot, { color: colors.primaryForeground }]}>
+          {unpaid.length} open invoice{unpaid.length === 1 ? '' : 's'}
+        </Text>
       </Surface>
 
       <PrimaryButton title="Create an invoice" icon="plus" onPress={() => setComposerOpen(true)} testID="create-invoice" />
@@ -104,13 +148,15 @@ export default function InvoicesScreen() {
               onMarkPaid={() =>
                 Alert.alert(
                   'Mark invoice as paid?',
-                   `This records ${formatCurrency(invoice.amount, state.currencyCode, state.countryCode)} as income and updates your cash-flow report.`,
+                  `This records ${formatCurrency(invoice.amount, state.currencyCode, state.countryCode)} as income and updates your cash-flow report.`,
                   [
                     { text: 'Cancel', style: 'cancel' },
                     { text: 'Mark paid', onPress: () => markInvoicePaid(invoice.id) },
                   ],
                 )
               }
+              onDelete={() => confirmDeleteInvoice(invoice)}
+              onShare={() => shareInvoice(invoice)}
             />
           ))
         ) : (
@@ -127,7 +173,15 @@ export default function InvoicesScreen() {
       <View style={styles.invoiceSection}>
         <SectionTitle title="Recently paid" />
         {paid.length ? (
-          paid.map((invoice) => <InvoiceCard key={invoice.id} invoice={invoice} onMarkPaid={() => undefined} />)
+          paid.map((invoice) => (
+            <InvoiceCard
+              key={invoice.id}
+              invoice={invoice}
+              onMarkPaid={() => undefined}
+              onDelete={() => confirmDeleteInvoice(invoice)}
+              onShare={() => shareInvoice(invoice)}
+            />
+          ))
         ) : (
           <Text style={[styles.emptyNote, { color: colors.mutedForeground }]}>Paid invoices will be listed here.</Text>
         )}
@@ -162,9 +216,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   invoiceAmount: { fontSize: 17, fontWeight: '700', letterSpacing: -0.4 },
+  invoiceActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  iconActionButton: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   markPaidButton: { borderRadius: 12, paddingHorizontal: 11, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 5 },
   markPaidText: { fontSize: 11, fontWeight: '700' },
-  paidMessage: { fontSize: 11, fontWeight: '700' },
+  paidMessage: { fontSize: 11, fontWeight: '700', paddingHorizontal: 4 },
   emptyCard: { alignItems: 'center', padding: 24, gap: 8 },
   emptyText: { fontSize: 14, fontWeight: '700' },
   emptyNote: { fontSize: 12, lineHeight: 17, textAlign: 'center' },
