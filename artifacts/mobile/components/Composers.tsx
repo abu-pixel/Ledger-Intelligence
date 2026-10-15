@@ -21,6 +21,7 @@ import { PrimaryButton } from '@/components/FinanceUI';
 import { getCurrencySymbol, parseLocalizedAmount } from '@/lib/localization';
 
 const EXPENSE_CATEGORIES = ['Supplies', 'Rent', 'Software', 'Travel', 'Payroll', 'Other'];
+const INCOME_CATEGORIES = ['Client income', 'Sales', 'Services', 'Consulting', 'Other'];
 
 function SheetFrame({
   visible,
@@ -238,6 +239,110 @@ export function ExpenseComposer({
       </Text>
       {error ? <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text> : null}
       <PrimaryButton title="Save expense" icon="check" onPress={saveExpense} testID="save-expense" />
+    </SheetFrame>
+  );
+}
+
+export function IncomeComposer({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const colors = useColors();
+  const { addTransaction, state } = useFinance();
+  const [source, setSource] = useState('');
+  const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState(INCOME_CATEGORIES[0]);
+  const [error, setError] = useState('');
+
+  function resetAndClose() {
+    setSource('');
+    setAmount('');
+    setCategory(INCOME_CATEGORIES[0]);
+    setError('');
+    onClose();
+  }
+
+  function saveIncome() {
+    const parsedAmount = parseLocalizedAmount(amount, state.countryCode);
+    if (!source.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setError('Enter a description/source and an amount greater than zero.');
+      return;
+    }
+    addTransaction({
+      title: source.trim(),
+      category,
+      amount: parsedAmount,
+      kind: 'income',
+    });
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+    resetAndClose();
+  }
+
+  return (
+    <SheetFrame
+      visible={visible}
+      title="Record income"
+      caption="Record cash sales, retainer payments, or direct receipts."
+      onClose={resetAndClose}
+    >
+      <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Source / Client</Text>
+      <TextInput
+        value={source}
+        onChangeText={setSource}
+        placeholder="e.g. Acme retainer or Retail sales"
+        placeholderTextColor={colors.mutedForeground}
+        style={[styles.input, { backgroundColor: colors.card, borderColor: colors.input, color: colors.foreground }]}
+        returnKeyType="next"
+        testID="income-source"
+      />
+
+      <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Amount received</Text>
+      <View style={[styles.amountInputRow, { backgroundColor: colors.card, borderColor: colors.input }]}>
+        <Text style={[styles.currencyPrefix, { color: colors.mutedForeground }]}>
+          {getCurrencySymbol(state.currencyCode, state.countryCode)}
+        </Text>
+        <TextInput
+          value={amount}
+          onChangeText={setAmount}
+          placeholder="0.00"
+          placeholderTextColor={colors.mutedForeground}
+          keyboardType="decimal-pad"
+          style={[styles.amountInput, { color: colors.foreground }]}
+          testID="income-amount"
+        />
+      </View>
+
+      <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Category</Text>
+      <View style={styles.choiceWrap}>
+        {INCOME_CATEGORIES.map((item) => {
+          const selected = category === item;
+          return (
+            <Pressable
+              key={item}
+              onPress={() => setCategory(item)}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              style={[
+                styles.choice,
+                {
+                  backgroundColor: selected ? colors.primary : colors.card,
+                  borderColor: selected ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <Text style={{ color: selected ? colors.primaryForeground : colors.foreground, fontSize: 12, fontWeight: '600' }}>
+                {item}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {error ? <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text> : null}
+      <PrimaryButton title="Save income" icon="arrow-down-left" onPress={saveIncome} testID="save-income" />
     </SheetFrame>
   );
 }

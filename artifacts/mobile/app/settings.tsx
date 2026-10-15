@@ -341,6 +341,38 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.section}>
+        <SectionTitle title="Data Export" />
+        <Surface style={styles.preferenceCard}>
+          <Text style={[styles.selectorTitle, { color: colors.foreground }]}>Export Transaction Ledger</Text>
+          <Text style={[styles.helperText, { color: colors.mutedForeground }]}>
+            Export your entire income and expense transaction history as CSV data for tax preparation or backup.
+          </Text>
+          <Pressable
+            onPress={() => {
+              const header = 'ID,Date,Kind,Category,Title,Amount\n';
+              const rows = state.transactions
+                .map(
+                  (t) =>
+                    `"${t.id}","${t.date}","${t.kind}","${t.category}","${t.title.replace(/"/g, '""')}",${t.amount}`,
+                )
+                .join('\n');
+              const csv = header + rows;
+              Alert.alert(
+                'Ledger CSV Export',
+                `Exported ${state.transactions.length} transactions:\n\n${csv.slice(0, 250)}${csv.length > 250 ? '...' : ''}`,
+                [{ text: 'Close', style: 'cancel' }],
+              );
+            }}
+            accessibilityRole="button"
+            style={[styles.assistantButton, { backgroundColor: colors.secondary }]}
+          >
+            <Feather name="download" size={16} color={colors.secondaryForeground} />
+            <Text style={[styles.primaryButtonText, { color: colors.secondaryForeground }]}>Export CSV</Text>
+          </Pressable>
+        </Surface>
+      </View>
+
+      <View style={styles.section}>
         <SectionTitle title="AI data sharing" />
         <Surface style={styles.preferenceCard}>
           <Text style={[styles.selectorTitle, { color: colors.foreground }]}>Accounting assistant privacy</Text>
