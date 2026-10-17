@@ -24,6 +24,10 @@ import type {
   AccountingGuidanceResponse,
   AiStatus,
   ApiError,
+  CurrencyRates,
+  FinanceWorkspace,
+  FinanceWorkspaceInput,
+  GetCurrencyRatesParams,
   HealthStatus
 } from './api.schemas';
 
@@ -298,4 +302,254 @@ export const useAskAccountingAssistant = <TError = ErrorType<ApiError>,
       > => {
       return useMutation(getAskAccountingAssistantMutationOptions(options));
     }
+
+export const getGetFinanceWorkspaceUrl = () => {
+
+
+
+
+  return `/api/finance`
+}
+
+/**
+ * @summary Load the signed-in user's finance workspace
+ */
+export const getFinanceWorkspace = async ( options?: Parameters<typeof customFetch>[1]): Promise<FinanceWorkspace> => {
+
+  return customFetch<FinanceWorkspace>(getGetFinanceWorkspaceUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFinanceWorkspaceQueryKey = () => {
+    return [
+    `/api/finance`
+    ] as const;
+    }
+
+
+export const getGetFinanceWorkspaceQueryOptions = <TData = Awaited<ReturnType<typeof getFinanceWorkspace>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFinanceWorkspace>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFinanceWorkspaceQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFinanceWorkspace>>> = ({ signal }) => getFinanceWorkspace({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFinanceWorkspace>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFinanceWorkspaceQueryResult = NonNullable<Awaited<ReturnType<typeof getFinanceWorkspace>>>
+export type GetFinanceWorkspaceQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Load the signed-in user's finance workspace
+ */
+
+export function useGetFinanceWorkspace<TData = Awaited<ReturnType<typeof getFinanceWorkspace>>, TError = ErrorType<ApiError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFinanceWorkspace>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFinanceWorkspaceQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveFinanceWorkspaceUrl = () => {
+
+
+
+
+  return `/api/finance`
+}
+
+/**
+ * Uses optimistic concurrency to prevent a stale device from silently overwriting a newer workspace.
+ * @summary Save the signed-in user's finance workspace
+ */
+export const saveFinanceWorkspace = async (financeWorkspaceInput: FinanceWorkspaceInput, options?: Parameters<typeof customFetch>[1]): Promise<FinanceWorkspace> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FinanceWorkspace>(getSaveFinanceWorkspaceUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(financeWorkspaceInput)
+  }
+);}
+
+
+
+
+
+export const getSaveFinanceWorkspaceMutationKey = () => ['saveFinanceWorkspace'] as const;
+
+export const getSaveFinanceWorkspaceMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveFinanceWorkspace>>, TError,SaveFinanceWorkspaceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveFinanceWorkspace>>, TError,SaveFinanceWorkspaceMutationVariables, TContext> => {
+
+const mutationKey = getSaveFinanceWorkspaceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveFinanceWorkspace>>, SaveFinanceWorkspaceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveFinanceWorkspace(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveFinanceWorkspaceMutationResult = NonNullable<Awaited<ReturnType<typeof saveFinanceWorkspace>>>
+    export type SaveFinanceWorkspaceMutationBody = BodyType<FinanceWorkspaceInput>
+    export type SaveFinanceWorkspaceMutationError = ErrorType<ApiError>
+    export type SaveFinanceWorkspaceMutationVariables = {data: BodyType<FinanceWorkspaceInput>}
+
+    /**
+ * @summary Save the signed-in user's finance workspace
+ */
+export const useSaveFinanceWorkspace = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveFinanceWorkspace>>, TError,SaveFinanceWorkspaceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveFinanceWorkspace>>,
+        TError,
+        SaveFinanceWorkspaceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveFinanceWorkspaceMutationOptions(options));
+    }
+
+export const getGetCurrencyRatesUrl = (params: GetCurrencyRatesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/currency-rates?${stringifiedParams}` : `/api/currency-rates`
+}
+
+/**
+ * @summary Get current indicative exchange rates
+ */
+export const getCurrencyRates = async (params: GetCurrencyRatesParams, options?: Parameters<typeof customFetch>[1]): Promise<CurrencyRates> => {
+
+  return customFetch<CurrencyRates>(getGetCurrencyRatesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCurrencyRatesQueryKey = (params?: GetCurrencyRatesParams,) => {
+    return [
+    `/api/currency-rates`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetCurrencyRatesQueryOptions = <TData = Awaited<ReturnType<typeof getCurrencyRates>>, TError = ErrorType<ApiError>>(params: GetCurrencyRatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrencyRates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCurrencyRatesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrencyRates>>> = ({ signal }) => getCurrencyRates(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCurrencyRates>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCurrencyRatesQueryResult = NonNullable<Awaited<ReturnType<typeof getCurrencyRates>>>
+export type GetCurrencyRatesQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Get current indicative exchange rates
+ */
+
+export function useGetCurrencyRates<TData = Awaited<ReturnType<typeof getCurrencyRates>>, TError = ErrorType<ApiError>>(
+ params: GetCurrencyRatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrencyRates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCurrencyRatesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

@@ -7,6 +7,7 @@ import {
   GetAiStatusResponse,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
+import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 let openAIClient: OpenAI | null = null;
@@ -28,10 +29,14 @@ router.get("/ai/status", (_req, res) => {
   res.json(data);
 });
 
-router.post("/ai/accounting-guidance", assistantRateLimit, async (req, res) => {
+router.post("/ai/accounting-guidance", requireAuth, assistantRateLimit, async (req, res) => {
   const request = AskAccountingAssistantBody.safeParse(req.body);
   if (!request.success) {
     res.status(400).json({ error: "The question or financial summary is invalid." });
+    return;
+  }
+  if (!request.data.consentAccepted) {
+    res.status(403).json({ error: "Enable the assistant's limited data sharing in Settings first." });
     return;
   }
 

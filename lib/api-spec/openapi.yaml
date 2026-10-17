@@ -12,6 +12,10 @@ tags:
     description: Health operations
   - name: ai
     description: AI-assisted accounting guidance
+  - name: finance
+    description: User-owned finance workspace
+  - name: currency
+    description: Indicative exchange rates
 paths:
   /healthz:
     get:
@@ -76,6 +80,97 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication or AI consent required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /finance:
+    get:
+      operationId: getFinanceWorkspace
+      tags: [finance]
+      summary: Load the signed-in user's finance workspace
+      responses:
+        "200":
+          description: Finance workspace and revision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceWorkspace"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    put:
+      operationId: saveFinanceWorkspace
+      tags: [finance]
+      summary: Save the signed-in user's finance workspace
+      description: Uses optimistic concurrency to prevent a stale device from silently overwriting a newer workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinanceWorkspaceInput"
+      responses:
+        "200":
+          description: Saved workspace and new revision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceWorkspace"
+        "400":
+          description: Invalid finance workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Workspace changed on another device
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /currency-rates:
+    get:
+      operationId: getCurrencyRates
+      tags: [currency]
+      summary: Get current indicative exchange rates
+      parameters:
+        - name: base
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Z]{3}$'
+      responses:
+        "200":
+          description: Exchange rates and provider update time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrencyRates"
+        "400":
+          description: Invalid currency code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: Exchange-rate provider unavailable or returned invalid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -97,6 +192,7 @@ components:
       additionalProperties: false
       required:
         - question
+        - consentAccepted
         - countryCode
         - countryName
         - currencyCode
@@ -106,6 +202,9 @@ components:
         - outstandingInvoiceAmount
         - unpaidInvoiceCount
       properties:
+        consentAccepted:
+          type: boolean
+          enum: [true]
         question:
           type: string
           minLength: 1
@@ -149,6 +248,171 @@ components:
           type: string
           minLength: 1
           maxLength: 5000
+    FinanceTransaction:
+      type: object
+      additionalProperties: false
+      required: [id, title, category, date, amount, kind]
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 120
+        title:
+          type: string
+          maxLength: 200
+        category:
+          type: string
+          maxLength: 120
+        date:
+          type: string
+          format: date-time
+        amount:
+          type: number
+          minimum: 0
+          maximum: 1000000000000
+        kind:
+          type: string
+          enum: [income, expense]
+    FinanceInvoice:
+      type: object
+      additionalProperties: false
+      required: [id, client, amount, dueDate, status]
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 120
+        client:
+          type: string
+          maxLength: 200
+        amount:
+          type: number
+          minimum: 0
+          maximum: 1000000000000
+        dueDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [paid, unpaid]
+    FinanceTaxRule:
+      type: object
+      additionalProperties: false
+      required: [id, name, countryCode, ratePercent, mode]
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 120
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        ratePercent:
+          type: number
+          minimum: 0
+          maximum: 100
+        mode:
+          type: string
+          enum: [exclusive, inclusive]
+    FinanceState:
+      type: object
+      additionalProperties: false
+      required:
+        - openingCash
+        - transactions
+        - invoices
+        - countryCode
+        - currencyCode
+        - themeId
+        - vatRatePercent
+        - aiConsentAccepted
+        - sampleOnly
+        - taxRules
+      properties:
+        openingCash:
+          type: number
+          minimum: -1000000000000
+          maximum: 1000000000000
+        transactions:
+          type: array
+          maxItems: 5000
+          items:
+            $ref: "#/components/schemas/FinanceTransaction"
+        invoices:
+          type: array
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/FinanceInvoice"
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        currencyCode:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        themeId:
+          type: string
+          enum: [forest, ocean, plum, sunset, midnight]
+        vatRatePercent:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 100
+        aiConsentAccepted:
+          type: boolean
+        sampleOnly:
+          type: boolean
+        taxRules:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/FinanceTaxRule"
+    FinanceWorkspaceInput:
+      type: object
+      additionalProperties: false
+      required: [state, expectedRevision]
+      properties:
+        state:
+          $ref: "#/components/schemas/FinanceState"
+        expectedRevision:
+          type: integer
+          minimum: 0
+    FinanceWorkspace:
+      type: object
+      additionalProperties: false
+      required: [state, revision, updatedAt]
+      properties:
+        state:
+          anyOf:
+            - $ref: "#/components/schemas/FinanceState"
+            - type: "null"
+        revision:
+          type: integer
+          minimum: 0
+        updatedAt:
+          type: ["string", "null"]
+          format: date-time
+    CurrencyRates:
+      type: object
+      additionalProperties: false
+      required: [base, rates, updatedAt, provider]
+      properties:
+        base:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        rates:
+          type: object
+          additionalProperties:
+            type: number
+            minimum: 0
+        updatedAt:
+          type: string
+          format: date-time
+        provider:
+          type: string
+          enum: [ExchangeRate-API]
     ApiError:
       type: object
       additionalProperties: false

@@ -5,10 +5,12 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import type { ThemeId } from '@/constants/colors';
+import { getFinanceWorkspace, saveFinanceWorkspace } from '@workspace/api-client-react';
 
 export type TransactionKind = 'income' | 'expense';
 
@@ -30,6 +32,15 @@ export type Invoice = {
   status: 'paid' | 'unpaid';
 };
 
+export type TaxRuleMode = 'exclusive' | 'inclusive';
+export type TaxRule = {
+  id: string;
+  name: string;
+  countryCode: string;
+  ratePercent: number;
+  mode: TaxRuleMode;
+};
+
 type FinanceState = {
   openingCash: number;
   transactions: Transaction[];
@@ -40,16 +51,22 @@ type FinanceState = {
   vatRatePercent: number | null;
   aiConsentAccepted: boolean;
   sampleOnly: boolean;
+  taxRules: TaxRule[];
 };
 
 type NewTransaction = Omit<Transaction, 'id' | 'date'> & { date?: string };
 type NewInvoice = Omit<Invoice, 'id' | 'status'>;
+type NewTaxRule = Omit<TaxRule, 'id'>;
 type UpdateCountry = (countryCode: string, suggestedCurrencyCode: string | null) => void;
+export type SyncStatus = 'local' | 'loading' | 'synced' | 'syncing' | 'offline' | 'conflict';
 
 type FinanceContextValue = {
   state: FinanceState;
   isReady: boolean;
   storageError: string | null;
+  syncStatus: SyncStatus;
+  syncError: string | null;
+  legacyImportAvailable: boolean;
   addTransaction: (transaction: NewTransaction) => void;
   addInvoice: (invoice: NewInvoice) => void;
   markInvoicePaid: (invoiceId: string) => void;
@@ -60,10 +77,19 @@ type FinanceContextValue = {
   updateTheme: (themeId: ThemeId) => void;
   updateVatRate: (rate: number | null) => void;
   setAiConsentAccepted: (accepted: boolean) => void;
+  addTaxRule: (rule: NewTaxRule) => void;
+  deleteTaxRule: (ruleId: string) => void;
+  retrySync: () => void;
+  restoreCloudWorkspace: () => Promise<void>;
+  overwriteCloudWorkspace: () => Promise<void>;
+  importLegacyWorkspace: () => Promise<void>;
+  dismissLegacyImport: () => Promise<void>;
   resetSampleWorkspace: () => void;
 };
 
 const STORAGE_KEY = 'ledgerly.finance.v1';
+const ACCOUNT_STORAGE_PREFIX = 'ledgerly.finance.account.v2.';
+const LEGACY_DISMISSED_PREFIX = 'ledgerly.finance.legacy-dismissed.';
 const FinanceContext = createContext<FinanceContextValue | null>(null);
 
 function dateAtMonthOffset(monthsAgo: number, day = 12) {
@@ -92,6 +118,7 @@ function createSampleState(): FinanceState {
     vatRatePercent: 15,
     aiConsentAccepted: false,
     sampleOnly: true,
+    taxRules: [],
     transactions: [
       {
         id: 'sample-1',
@@ -226,6 +253,23 @@ function isInvoice(value: unknown): value is Invoice {
   );
 }
 
+function isTaxRule(value: unknown): value is TaxRule {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    value.name.trim().length > 0 &&
+    value.name.length <= 80 &&
+    typeof value.countryCode === 'string' &&
+    /^[A-Z]{2}$/.test(value.countryCode) &&
+    typeof value.ratePercent === 'number' &&
+    Number.isFinite(value.ratePercent) &&
+    value.ratePercent >= 0 &&
+    value.ratePercent <= 100 &&
+    (value.mode === 'inclusive' || value.mode === 'exclusive')
+  );
+}
+
 function defaultVatRate(countryCode: string) {
   return countryCode === 'ET' ? 15 : null;
 }
@@ -280,43 +324,254 @@ function migrateSavedState(value: unknown): FinanceState {
     aiConsentAccepted: value.aiConsentAccepted === true,
     sampleOnly:
       typeof value.sampleOnly === 'boolean' ? value.sampleOnly : inferredSampleOnly,
+    taxRules:
+      Array.isArray(value.taxRules) && value.taxRules.every(isTaxRule)
+        ? value.taxRules
+        : [],
   };
 }
 
-export function FinanceProvider({ children }: { children: ReactNode }) {
+function parseStoredWorkspace(raw: string) {
+  const parsed: unknown = JSON.parse(raw);
+  if (
+    isRecord(parsed) &&
+    parsed.version === 2 &&
+    isRecord(parsed.state) &&
+    typeof parsed.updatedAt === 'number' &&
+    Number.isFinite(parsed.updatedAt)
+  ) {
+    return {
+      state: migrateSavedState(parsed.state),
+      updatedAt: parsed.updatedAt,
+    };
+  }
+  return { state: migrateSavedState(parsed), updatedAt: 0 };
+}
+
+function cloudSafeState(state: FinanceState): FinanceState {
+  return {
+    ...state,
+    transactions: state.transactions.map(({ receiptUri: _receiptUri, ...transaction }) => transaction),
+  };
+}
+
+function withLocalReceipts(remote: FinanceState, local: FinanceState): FinanceState {
+  const receiptsById = new Map(
+    local.transactions
+      .filter((transaction) => transaction.receiptUri)
+      .map((transaction) => [transaction.id, transaction.receiptUri as string]),
+  );
+  return {
+    ...remote,
+    transactions: remote.transactions.map((transaction) => ({
+      ...transaction,
+      ...(receiptsById.has(transaction.id)
+        ? { receiptUri: receiptsById.get(transaction.id) }
+        : {}),
+    })),
+  };
+}
+
+function getHttpStatus(error: unknown) {
+  if (!isRecord(error)) return undefined;
+  if (typeof error.status === 'number') return error.status;
+  if (isRecord(error.response) && typeof error.response.status === 'number') {
+    return error.response.status;
+  }
+  return undefined;
+}
+
+export function FinanceProvider({
+  children,
+  userId,
+}: {
+  children: ReactNode;
+  userId: string | null;
+}) {
   const [state, setState] = useState<FinanceState>(createSampleState);
   const [isReady, setIsReady] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(userId ? 'loading' : 'local');
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [legacyState, setLegacyState] = useState<FinanceState | null>(null);
+  const [retryVersion, setRetryVersion] = useState(0);
+  const storageKey = userId ? `${ACCOUNT_STORAGE_PREFIX}${userId}` : null;
+  const stateRef = useRef(state);
+  const localUpdatedAtRef = useRef(0);
+  const remoteRevisionRef = useRef(0);
+  const remoteReadyRef = useRef(false);
+  const suppressPersistRef = useRef(false);
+  const lastSyncedHashRef = useRef('');
 
   useEffect(() => {
     let active = true;
+    setIsReady(false);
+    setState(createSampleState());
+    setLegacyState(null);
+    stateRef.current = createSampleState();
+    localUpdatedAtRef.current = 0;
+    remoteRevisionRef.current = 0;
+    remoteReadyRef.current = false;
+    lastSyncedHashRef.current = '';
+    setSyncStatus(userId ? 'loading' : 'local');
+    setSyncError(null);
+
     async function load() {
       try {
-        const saved = await AsyncStorage.getItem(STORAGE_KEY);
-        if (!saved) return;
-        const parsed = migrateSavedState(JSON.parse(saved) as unknown);
-        if (active) setState(parsed);
+        if (!userId || !storageKey) return;
+        const saved = await AsyncStorage.getItem(storageKey);
+        if (saved) {
+          const parsed = parseStoredWorkspace(saved);
+          if (active) {
+            stateRef.current = parsed.state;
+            localUpdatedAtRef.current = parsed.updatedAt;
+            suppressPersistRef.current = true;
+            setState(parsed.state);
+          }
+        } else {
+          const [legacy, dismissed] = await Promise.all([
+            AsyncStorage.getItem(STORAGE_KEY),
+            AsyncStorage.getItem(`${LEGACY_DISMISSED_PREFIX}${userId}`),
+          ]);
+          if (legacy && dismissed !== 'true' && active) {
+            try {
+              setLegacyState(parseStoredWorkspace(legacy).state);
+            } catch {
+              setStorageError('An older on-device ledger could not be read safely.');
+            }
+          }
+        }
       } catch {
         if (active) {
           setStorageError('Saved data could not be loaded. Your sample workspace is still available.');
         }
       } finally {
-        if (active) setIsReady(true);
+        if (active) {
+          suppressPersistRef.current = true;
+          setIsReady(true);
+        }
       }
     }
     void load();
     return () => {
       active = false;
     };
-  }, []);
+  }, [storageKey, userId]);
 
   useEffect(() => {
-    if (!isReady) return;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).then(
+    stateRef.current = state;
+  }, [state]);
+
+  useEffect(() => {
+    if (!isReady || !storageKey) return;
+    if (suppressPersistRef.current) {
+      suppressPersistRef.current = false;
+      return;
+    }
+    const updatedAt = Date.now();
+    localUpdatedAtRef.current = updatedAt;
+    AsyncStorage.setItem(
+      storageKey,
+      JSON.stringify({ version: 2, updatedAt, state }),
+    ).then(
       () => setStorageError(null),
       () => setStorageError('Changes could not be saved on this device.'),
     );
-  }, [isReady, state]);
+  }, [isReady, state, storageKey]);
+
+  useEffect(() => {
+    if (!userId || !isReady) {
+      remoteReadyRef.current = false;
+      return;
+    }
+    let active = true;
+    setSyncStatus('loading');
+    setSyncError(null);
+
+    void getFinanceWorkspace()
+      .then((remote) => {
+        if (!active) return;
+        const local = stateRef.current;
+        const remoteTime = remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
+        remoteRevisionRef.current = remote.revision;
+        remoteReadyRef.current = true;
+
+        if (!remote.state) {
+          lastSyncedHashRef.current = '';
+          setSyncStatus('syncing');
+          return;
+        }
+
+        const remoteState = migrateSavedState(remote.state);
+        const localIsNewer =
+          !local.sampleOnly &&
+          (!remoteState.sampleOnly || localUpdatedAtRef.current > remoteTime);
+        if (localIsNewer) {
+          setSyncStatus('syncing');
+          return;
+        }
+
+        const merged = withLocalReceipts(remoteState, local);
+        stateRef.current = merged;
+        localUpdatedAtRef.current = remoteTime;
+        suppressPersistRef.current = true;
+        setState(merged);
+        lastSyncedHashRef.current = JSON.stringify(cloudSafeState(merged));
+        setSyncStatus('synced');
+      })
+      .catch(() => {
+        if (!active) return;
+        remoteReadyRef.current = false;
+        setSyncStatus('offline');
+        setSyncError('Your workspace is safe on this device, but cloud sync is unavailable.');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isReady, retryVersion, userId]);
+
+  useEffect(() => {
+    if (!isReady || !userId || !remoteReadyRef.current) return;
+    const cloudState = cloudSafeState(state);
+    const hash = JSON.stringify(cloudState);
+    if (hash === lastSyncedHashRef.current) return;
+
+    let active = true;
+    const timeout = setTimeout(() => {
+      setSyncStatus('syncing');
+      setSyncError(null);
+      void saveFinanceWorkspace({
+        state: cloudState,
+        expectedRevision: remoteRevisionRef.current,
+      })
+        .then((saved) => {
+          if (!active) return;
+          remoteRevisionRef.current = saved.revision;
+          lastSyncedHashRef.current = hash;
+          setSyncStatus(
+            JSON.stringify(cloudSafeState(stateRef.current)) === hash
+              ? 'synced'
+              : 'syncing',
+          );
+        })
+        .catch((error: unknown) => {
+          if (!active) return;
+          if (getHttpStatus(error) === 409) {
+            setSyncStatus('conflict');
+            setSyncError('Another device has a newer version. Choose which version to keep in Settings.');
+          } else {
+            setSyncStatus('offline');
+            setSyncError('Your latest changes are saved on this device and will sync after a retry.');
+          }
+        });
+    }, 700);
+
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+    };
+  }, [isReady, state, userId]);
 
   const addTransaction = useCallback((transaction: NewTransaction) => {
     const newTransaction: Transaction = {
@@ -411,6 +666,90 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     setState((current) => ({ ...current, aiConsentAccepted: accepted }));
   }, []);
 
+  const addTaxRule = useCallback((rule: NewTaxRule) => {
+    if (
+      !rule.name.trim() ||
+      rule.name.length > 80 ||
+      !/^[A-Z]{2}$/.test(rule.countryCode) ||
+      !Number.isFinite(rule.ratePercent) ||
+      rule.ratePercent < 0 ||
+      rule.ratePercent > 100
+    ) return;
+    setState((current) => ({
+      ...current,
+      sampleOnly: false,
+      taxRules: [
+        { ...rule, id: createId('tax'), name: rule.name.trim() },
+        ...current.taxRules,
+      ],
+    }));
+  }, []);
+
+  const deleteTaxRule = useCallback((ruleId: string) => {
+    setState((current) => ({
+      ...current,
+      sampleOnly: false,
+      taxRules: current.taxRules.filter((rule) => rule.id !== ruleId),
+    }));
+  }, []);
+
+  const retrySync = useCallback(() => {
+    if (syncStatus === 'conflict') return;
+    remoteReadyRef.current = false;
+    setRetryVersion((current) => current + 1);
+  }, [syncStatus]);
+
+  const restoreCloudWorkspace = useCallback(async () => {
+    if (!userId) throw new Error('Sign in before restoring cloud data.');
+    const remote = await getFinanceWorkspace();
+    if (!remote.state) throw new Error('There is no saved cloud workspace to restore.');
+    const restored = migrateSavedState(remote.state);
+    remoteRevisionRef.current = remote.revision;
+    remoteReadyRef.current = true;
+    stateRef.current = restored;
+    localUpdatedAtRef.current = remote.updatedAt ? Date.parse(remote.updatedAt) : Date.now();
+    lastSyncedHashRef.current = JSON.stringify(cloudSafeState(restored));
+    suppressPersistRef.current = true;
+    setState(restored);
+    setSyncStatus('synced');
+    setSyncError(null);
+  }, [userId]);
+
+  const overwriteCloudWorkspace = useCallback(async () => {
+    if (!userId) throw new Error('Sign in before syncing cloud data.');
+    const remote = await getFinanceWorkspace();
+    const cloudState = cloudSafeState(stateRef.current);
+    const saved = await saveFinanceWorkspace({
+      state: cloudState,
+      expectedRevision: remote.revision,
+    });
+    remoteRevisionRef.current = saved.revision;
+    lastSyncedHashRef.current = JSON.stringify(cloudState);
+    remoteReadyRef.current = true;
+    setSyncStatus('synced');
+    setSyncError(null);
+  }, [userId]);
+
+  const importLegacyWorkspace = useCallback(async () => {
+    if (!userId || !storageKey || !legacyState) return;
+    const updatedAt = Date.now();
+    await AsyncStorage.setItem(
+      storageKey,
+      JSON.stringify({ version: 2, updatedAt, state: legacyState }),
+    );
+    localUpdatedAtRef.current = updatedAt;
+    stateRef.current = legacyState;
+    setState(legacyState);
+    setLegacyState(null);
+    setStorageError(null);
+  }, [legacyState, storageKey, userId]);
+
+  const dismissLegacyImport = useCallback(async () => {
+    if (!userId) return;
+    await AsyncStorage.setItem(`${LEGACY_DISMISSED_PREFIX}${userId}`, 'true');
+    setLegacyState(null);
+  }, [userId]);
+
   const resetSampleWorkspace = useCallback(() => {
     setState((current) => ({
       ...createSampleState(),
@@ -419,6 +758,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       themeId: current.themeId,
       vatRatePercent: current.vatRatePercent,
       aiConsentAccepted: current.aiConsentAccepted,
+      taxRules: current.taxRules,
     }));
   }, []);
 
@@ -427,6 +767,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       state,
       isReady,
       storageError,
+      syncStatus,
+      syncError,
+      legacyImportAvailable: Boolean(legacyState),
       addTransaction,
       addInvoice,
       markInvoicePaid,
@@ -437,12 +780,22 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       updateTheme,
       updateVatRate,
       setAiConsentAccepted,
+      addTaxRule,
+      deleteTaxRule,
+      retrySync,
+      restoreCloudWorkspace,
+      overwriteCloudWorkspace,
+      importLegacyWorkspace,
+      dismissLegacyImport,
       resetSampleWorkspace,
     }),
     [
       state,
       isReady,
       storageError,
+      syncStatus,
+      syncError,
+      legacyState,
       addTransaction,
       addInvoice,
       markInvoicePaid,
@@ -453,6 +806,13 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       updateTheme,
       updateVatRate,
       setAiConsentAccepted,
+      addTaxRule,
+      deleteTaxRule,
+      retrySync,
+      restoreCloudWorkspace,
+      overwriteCloudWorkspace,
+      importLegacyWorkspace,
+      dismissLegacyImport,
       resetSampleWorkspace,
     ],
   );

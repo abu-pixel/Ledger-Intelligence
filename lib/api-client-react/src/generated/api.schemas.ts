@@ -14,6 +14,7 @@ export interface AiStatus {
 }
 
 export interface AccountingGuidanceRequest {
+  consentAccepted: true;
   /**
      * @minLength 1
      * @maxLength 1200
@@ -63,6 +64,156 @@ export interface AccountingGuidanceResponse {
   answer: string;
 }
 
+export type FinanceTransactionKind = typeof FinanceTransactionKind[keyof typeof FinanceTransactionKind];
+
+
+export const FinanceTransactionKind = {
+  income: 'income',
+  expense: 'expense',
+} as const;
+
+export interface FinanceTransaction {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  id: string;
+  /** @maxLength 200 */
+  title: string;
+  /** @maxLength 120 */
+  category: string;
+  date: string;
+  /**
+     * @minimum 0
+     * @maximum 1000000000000
+     */
+  amount: number;
+  kind: FinanceTransactionKind;
+}
+
+export type FinanceInvoiceStatus = typeof FinanceInvoiceStatus[keyof typeof FinanceInvoiceStatus];
+
+
+export const FinanceInvoiceStatus = {
+  paid: 'paid',
+  unpaid: 'unpaid',
+} as const;
+
+export interface FinanceInvoice {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  id: string;
+  /** @maxLength 200 */
+  client: string;
+  /**
+     * @minimum 0
+     * @maximum 1000000000000
+     */
+  amount: number;
+  dueDate: string;
+  status: FinanceInvoiceStatus;
+}
+
+export type FinanceTaxRuleMode = typeof FinanceTaxRuleMode[keyof typeof FinanceTaxRuleMode];
+
+
+export const FinanceTaxRuleMode = {
+  exclusive: 'exclusive',
+  inclusive: 'inclusive',
+} as const;
+
+export interface FinanceTaxRule {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  name: string;
+  /** @pattern ^[A-Z]{2}$ */
+  countryCode: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  ratePercent: number;
+  mode: FinanceTaxRuleMode;
+}
+
+export type FinanceStateThemeId = typeof FinanceStateThemeId[keyof typeof FinanceStateThemeId];
+
+
+export const FinanceStateThemeId = {
+  forest: 'forest',
+  ocean: 'ocean',
+  plum: 'plum',
+  sunset: 'sunset',
+  midnight: 'midnight',
+} as const;
+
+export interface FinanceState {
+  /**
+     * @minimum -1000000000000
+     * @maximum 1000000000000
+     */
+  openingCash: number;
+  /** @maxItems 5000 */
+  transactions: FinanceTransaction[];
+  /** @maxItems 1000 */
+  invoices: FinanceInvoice[];
+  /** @pattern ^[A-Z]{2}$ */
+  countryCode: string;
+  /** @pattern ^[A-Z]{3}$ */
+  currencyCode: string;
+  themeId: FinanceStateThemeId;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  vatRatePercent: number | null;
+  aiConsentAccepted: boolean;
+  sampleOnly: boolean;
+  /** @maxItems 100 */
+  taxRules: FinanceTaxRule[];
+}
+
+export interface FinanceWorkspaceInput {
+  state: FinanceState;
+  /** @minimum 0 */
+  expectedRevision: number;
+}
+
+export interface FinanceWorkspace {
+  state: FinanceState | null;
+  /** @minimum 0 */
+  revision: number;
+  /** @nullable */
+  updatedAt: string | null;
+}
+
+export type CurrencyRatesRates = {[key: string]: number};
+
+export type CurrencyRatesProvider = typeof CurrencyRatesProvider[keyof typeof CurrencyRatesProvider];
+
+
+export const CurrencyRatesProvider = {
+  'ExchangeRate-API': 'ExchangeRate-API',
+} as const;
+
+export interface CurrencyRates {
+  /** @pattern ^[A-Z]{3}$ */
+  base: string;
+  rates: CurrencyRatesRates;
+  updatedAt: string;
+  provider: CurrencyRatesProvider;
+}
+
 export interface ApiError {
   /**
      * @minLength 1
@@ -70,4 +221,11 @@ export interface ApiError {
      */
   error: string;
 }
+
+export type GetCurrencyRatesParams = {
+/**
+ * @pattern ^[A-Z]{3}$
+ */
+base: string;
+};
 

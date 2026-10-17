@@ -35,6 +35,12 @@ function NativeTabLayout() {
         />
         <NativeTabs.Trigger.Label>Reports</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="tools">
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'function', selected: 'function' }}
+        />
+        <NativeTabs.Trigger.Label>Tools</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="insights">
         <NativeTabs.Trigger.Icon
           sf={{ default: 'sparkles', selected: 'sparkles' }}
@@ -128,6 +134,18 @@ function ClassicTabLayout() {
               <SymbolView name="chart.bar" tintColor={color} size={22} />
             ) : (
               <Feather name="bar-chart-2" size={21} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="tools"
+        options={{
+          title: 'Tax & currency',
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="function" tintColor={color} size={22} />
+            ) : (
+              <Feather name="percent" size={21} color={color} />
             ),
         }}
       />

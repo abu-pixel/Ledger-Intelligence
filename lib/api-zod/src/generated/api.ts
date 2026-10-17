@@ -54,6 +54,7 @@ export const askAccountingAssistantBodyUnpaidInvoiceCountMax = 100000;
 
 
 export const AskAccountingAssistantBody = zod.object({
+  "consentAccepted": zod.literal(true),
   "question": zod.string().min(1).max(askAccountingAssistantBodyQuestionMax),
   "countryCode": zod.string().regex(askAccountingAssistantBodyCountryCodeRegExp),
   "countryName": zod.string().min(1).max(askAccountingAssistantBodyCountryNameMax),
@@ -71,6 +72,271 @@ export const askAccountingAssistantResponseAnswerMax = 5000;
 
 export const AskAccountingAssistantResponse = zod.object({
   "answer": zod.string().min(1).max(askAccountingAssistantResponseAnswerMax)
+})
+
+
+/**
+ * @summary Load the signed-in user's finance workspace
+ */
+export const getFinanceWorkspaceResponseStateOneOpeningCashMin = -1000000000000;
+export const getFinanceWorkspaceResponseStateOneOpeningCashMax = 1000000000000;
+
+export const getFinanceWorkspaceResponseStateOneTransactionsItemIdMax = 120;
+
+export const getFinanceWorkspaceResponseStateOneTransactionsItemTitleMax = 200;
+
+export const getFinanceWorkspaceResponseStateOneTransactionsItemCategoryMax = 120;
+
+export const getFinanceWorkspaceResponseStateOneTransactionsItemAmountMin = 0;
+export const getFinanceWorkspaceResponseStateOneTransactionsItemAmountMax = 1000000000000;
+
+export const getFinanceWorkspaceResponseStateOneTransactionsMax = 5000;
+
+export const getFinanceWorkspaceResponseStateOneInvoicesItemIdMax = 120;
+
+export const getFinanceWorkspaceResponseStateOneInvoicesItemClientMax = 200;
+
+export const getFinanceWorkspaceResponseStateOneInvoicesItemAmountMin = 0;
+export const getFinanceWorkspaceResponseStateOneInvoicesItemAmountMax = 1000000000000;
+
+export const getFinanceWorkspaceResponseStateOneInvoicesMax = 1000;
+
+export const getFinanceWorkspaceResponseStateOneCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const getFinanceWorkspaceResponseStateOneCurrencyCodeRegExp = new RegExp('^[A-Z]{3}$');
+export const getFinanceWorkspaceResponseStateOneVatRatePercentMin = 0;
+export const getFinanceWorkspaceResponseStateOneVatRatePercentMax = 100;
+
+export const getFinanceWorkspaceResponseStateOneTaxRulesItemIdMax = 120;
+
+export const getFinanceWorkspaceResponseStateOneTaxRulesItemNameMax = 80;
+
+export const getFinanceWorkspaceResponseStateOneTaxRulesItemCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const getFinanceWorkspaceResponseStateOneTaxRulesItemRatePercentMin = 0;
+export const getFinanceWorkspaceResponseStateOneTaxRulesItemRatePercentMax = 100;
+
+export const getFinanceWorkspaceResponseStateOneTaxRulesMax = 100;
+
+export const getFinanceWorkspaceResponseRevisionMin = 0;
+
+
+
+export const GetFinanceWorkspaceResponse = zod.object({
+  "state": zod.union([zod.object({
+  "openingCash": zod.number().min(getFinanceWorkspaceResponseStateOneOpeningCashMin).max(getFinanceWorkspaceResponseStateOneOpeningCashMax),
+  "transactions": zod.array(zod.object({
+  "id": zod.string().min(1).max(getFinanceWorkspaceResponseStateOneTransactionsItemIdMax),
+  "title": zod.string().max(getFinanceWorkspaceResponseStateOneTransactionsItemTitleMax),
+  "category": zod.string().max(getFinanceWorkspaceResponseStateOneTransactionsItemCategoryMax),
+  "date": zod.coerce.date(),
+  "amount": zod.number().min(getFinanceWorkspaceResponseStateOneTransactionsItemAmountMin).max(getFinanceWorkspaceResponseStateOneTransactionsItemAmountMax),
+  "kind": zod.enum(['income', 'expense'])
+})).max(getFinanceWorkspaceResponseStateOneTransactionsMax),
+  "invoices": zod.array(zod.object({
+  "id": zod.string().min(1).max(getFinanceWorkspaceResponseStateOneInvoicesItemIdMax),
+  "client": zod.string().max(getFinanceWorkspaceResponseStateOneInvoicesItemClientMax),
+  "amount": zod.number().min(getFinanceWorkspaceResponseStateOneInvoicesItemAmountMin).max(getFinanceWorkspaceResponseStateOneInvoicesItemAmountMax),
+  "dueDate": zod.coerce.date(),
+  "status": zod.enum(['paid', 'unpaid'])
+})).max(getFinanceWorkspaceResponseStateOneInvoicesMax),
+  "countryCode": zod.string().regex(getFinanceWorkspaceResponseStateOneCountryCodeRegExp),
+  "currencyCode": zod.string().regex(getFinanceWorkspaceResponseStateOneCurrencyCodeRegExp),
+  "themeId": zod.enum(['forest', 'ocean', 'plum', 'sunset', 'midnight']),
+  "vatRatePercent": zod.number().min(getFinanceWorkspaceResponseStateOneVatRatePercentMin).max(getFinanceWorkspaceResponseStateOneVatRatePercentMax).nullable(),
+  "aiConsentAccepted": zod.boolean(),
+  "sampleOnly": zod.boolean(),
+  "taxRules": zod.array(zod.object({
+  "id": zod.string().min(1).max(getFinanceWorkspaceResponseStateOneTaxRulesItemIdMax),
+  "name": zod.string().min(1).max(getFinanceWorkspaceResponseStateOneTaxRulesItemNameMax),
+  "countryCode": zod.string().regex(getFinanceWorkspaceResponseStateOneTaxRulesItemCountryCodeRegExp),
+  "ratePercent": zod.number().min(getFinanceWorkspaceResponseStateOneTaxRulesItemRatePercentMin).max(getFinanceWorkspaceResponseStateOneTaxRulesItemRatePercentMax),
+  "mode": zod.enum(['exclusive', 'inclusive'])
+})).max(getFinanceWorkspaceResponseStateOneTaxRulesMax)
+}),zod.null()]),
+  "revision": zod.number().int().min(getFinanceWorkspaceResponseRevisionMin),
+  "updatedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * Uses optimistic concurrency to prevent a stale device from silently overwriting a newer workspace.
+ * @summary Save the signed-in user's finance workspace
+ */
+export const saveFinanceWorkspaceBodyStateOpeningCashMin = -1000000000000;
+export const saveFinanceWorkspaceBodyStateOpeningCashMax = 1000000000000;
+
+export const saveFinanceWorkspaceBodyStateTransactionsItemIdMax = 120;
+
+export const saveFinanceWorkspaceBodyStateTransactionsItemTitleMax = 200;
+
+export const saveFinanceWorkspaceBodyStateTransactionsItemCategoryMax = 120;
+
+export const saveFinanceWorkspaceBodyStateTransactionsItemAmountMin = 0;
+export const saveFinanceWorkspaceBodyStateTransactionsItemAmountMax = 1000000000000;
+
+export const saveFinanceWorkspaceBodyStateTransactionsMax = 5000;
+
+export const saveFinanceWorkspaceBodyStateInvoicesItemIdMax = 120;
+
+export const saveFinanceWorkspaceBodyStateInvoicesItemClientMax = 200;
+
+export const saveFinanceWorkspaceBodyStateInvoicesItemAmountMin = 0;
+export const saveFinanceWorkspaceBodyStateInvoicesItemAmountMax = 1000000000000;
+
+export const saveFinanceWorkspaceBodyStateInvoicesMax = 1000;
+
+export const saveFinanceWorkspaceBodyStateCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const saveFinanceWorkspaceBodyStateCurrencyCodeRegExp = new RegExp('^[A-Z]{3}$');
+export const saveFinanceWorkspaceBodyStateVatRatePercentMin = 0;
+export const saveFinanceWorkspaceBodyStateVatRatePercentMax = 100;
+
+export const saveFinanceWorkspaceBodyStateTaxRulesItemIdMax = 120;
+
+export const saveFinanceWorkspaceBodyStateTaxRulesItemNameMax = 80;
+
+export const saveFinanceWorkspaceBodyStateTaxRulesItemCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const saveFinanceWorkspaceBodyStateTaxRulesItemRatePercentMin = 0;
+export const saveFinanceWorkspaceBodyStateTaxRulesItemRatePercentMax = 100;
+
+export const saveFinanceWorkspaceBodyStateTaxRulesMax = 100;
+
+export const saveFinanceWorkspaceBodyExpectedRevisionMin = 0;
+
+
+
+export const SaveFinanceWorkspaceBody = zod.object({
+  "state": zod.object({
+  "openingCash": zod.number().min(saveFinanceWorkspaceBodyStateOpeningCashMin).max(saveFinanceWorkspaceBodyStateOpeningCashMax),
+  "transactions": zod.array(zod.object({
+  "id": zod.string().min(1).max(saveFinanceWorkspaceBodyStateTransactionsItemIdMax),
+  "title": zod.string().max(saveFinanceWorkspaceBodyStateTransactionsItemTitleMax),
+  "category": zod.string().max(saveFinanceWorkspaceBodyStateTransactionsItemCategoryMax),
+  "date": zod.coerce.date(),
+  "amount": zod.number().min(saveFinanceWorkspaceBodyStateTransactionsItemAmountMin).max(saveFinanceWorkspaceBodyStateTransactionsItemAmountMax),
+  "kind": zod.enum(['income', 'expense'])
+})).max(saveFinanceWorkspaceBodyStateTransactionsMax),
+  "invoices": zod.array(zod.object({
+  "id": zod.string().min(1).max(saveFinanceWorkspaceBodyStateInvoicesItemIdMax),
+  "client": zod.string().max(saveFinanceWorkspaceBodyStateInvoicesItemClientMax),
+  "amount": zod.number().min(saveFinanceWorkspaceBodyStateInvoicesItemAmountMin).max(saveFinanceWorkspaceBodyStateInvoicesItemAmountMax),
+  "dueDate": zod.coerce.date(),
+  "status": zod.enum(['paid', 'unpaid'])
+})).max(saveFinanceWorkspaceBodyStateInvoicesMax),
+  "countryCode": zod.string().regex(saveFinanceWorkspaceBodyStateCountryCodeRegExp),
+  "currencyCode": zod.string().regex(saveFinanceWorkspaceBodyStateCurrencyCodeRegExp),
+  "themeId": zod.enum(['forest', 'ocean', 'plum', 'sunset', 'midnight']),
+  "vatRatePercent": zod.number().min(saveFinanceWorkspaceBodyStateVatRatePercentMin).max(saveFinanceWorkspaceBodyStateVatRatePercentMax).nullable(),
+  "aiConsentAccepted": zod.boolean(),
+  "sampleOnly": zod.boolean(),
+  "taxRules": zod.array(zod.object({
+  "id": zod.string().min(1).max(saveFinanceWorkspaceBodyStateTaxRulesItemIdMax),
+  "name": zod.string().min(1).max(saveFinanceWorkspaceBodyStateTaxRulesItemNameMax),
+  "countryCode": zod.string().regex(saveFinanceWorkspaceBodyStateTaxRulesItemCountryCodeRegExp),
+  "ratePercent": zod.number().min(saveFinanceWorkspaceBodyStateTaxRulesItemRatePercentMin).max(saveFinanceWorkspaceBodyStateTaxRulesItemRatePercentMax),
+  "mode": zod.enum(['exclusive', 'inclusive'])
+})).max(saveFinanceWorkspaceBodyStateTaxRulesMax)
+}),
+  "expectedRevision": zod.number().int().min(saveFinanceWorkspaceBodyExpectedRevisionMin)
+})
+
+export const saveFinanceWorkspaceResponseStateOneOpeningCashMin = -1000000000000;
+export const saveFinanceWorkspaceResponseStateOneOpeningCashMax = 1000000000000;
+
+export const saveFinanceWorkspaceResponseStateOneTransactionsItemIdMax = 120;
+
+export const saveFinanceWorkspaceResponseStateOneTransactionsItemTitleMax = 200;
+
+export const saveFinanceWorkspaceResponseStateOneTransactionsItemCategoryMax = 120;
+
+export const saveFinanceWorkspaceResponseStateOneTransactionsItemAmountMin = 0;
+export const saveFinanceWorkspaceResponseStateOneTransactionsItemAmountMax = 1000000000000;
+
+export const saveFinanceWorkspaceResponseStateOneTransactionsMax = 5000;
+
+export const saveFinanceWorkspaceResponseStateOneInvoicesItemIdMax = 120;
+
+export const saveFinanceWorkspaceResponseStateOneInvoicesItemClientMax = 200;
+
+export const saveFinanceWorkspaceResponseStateOneInvoicesItemAmountMin = 0;
+export const saveFinanceWorkspaceResponseStateOneInvoicesItemAmountMax = 1000000000000;
+
+export const saveFinanceWorkspaceResponseStateOneInvoicesMax = 1000;
+
+export const saveFinanceWorkspaceResponseStateOneCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const saveFinanceWorkspaceResponseStateOneCurrencyCodeRegExp = new RegExp('^[A-Z]{3}$');
+export const saveFinanceWorkspaceResponseStateOneVatRatePercentMin = 0;
+export const saveFinanceWorkspaceResponseStateOneVatRatePercentMax = 100;
+
+export const saveFinanceWorkspaceResponseStateOneTaxRulesItemIdMax = 120;
+
+export const saveFinanceWorkspaceResponseStateOneTaxRulesItemNameMax = 80;
+
+export const saveFinanceWorkspaceResponseStateOneTaxRulesItemCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const saveFinanceWorkspaceResponseStateOneTaxRulesItemRatePercentMin = 0;
+export const saveFinanceWorkspaceResponseStateOneTaxRulesItemRatePercentMax = 100;
+
+export const saveFinanceWorkspaceResponseStateOneTaxRulesMax = 100;
+
+export const saveFinanceWorkspaceResponseRevisionMin = 0;
+
+
+
+export const SaveFinanceWorkspaceResponse = zod.object({
+  "state": zod.union([zod.object({
+  "openingCash": zod.number().min(saveFinanceWorkspaceResponseStateOneOpeningCashMin).max(saveFinanceWorkspaceResponseStateOneOpeningCashMax),
+  "transactions": zod.array(zod.object({
+  "id": zod.string().min(1).max(saveFinanceWorkspaceResponseStateOneTransactionsItemIdMax),
+  "title": zod.string().max(saveFinanceWorkspaceResponseStateOneTransactionsItemTitleMax),
+  "category": zod.string().max(saveFinanceWorkspaceResponseStateOneTransactionsItemCategoryMax),
+  "date": zod.coerce.date(),
+  "amount": zod.number().min(saveFinanceWorkspaceResponseStateOneTransactionsItemAmountMin).max(saveFinanceWorkspaceResponseStateOneTransactionsItemAmountMax),
+  "kind": zod.enum(['income', 'expense'])
+})).max(saveFinanceWorkspaceResponseStateOneTransactionsMax),
+  "invoices": zod.array(zod.object({
+  "id": zod.string().min(1).max(saveFinanceWorkspaceResponseStateOneInvoicesItemIdMax),
+  "client": zod.string().max(saveFinanceWorkspaceResponseStateOneInvoicesItemClientMax),
+  "amount": zod.number().min(saveFinanceWorkspaceResponseStateOneInvoicesItemAmountMin).max(saveFinanceWorkspaceResponseStateOneInvoicesItemAmountMax),
+  "dueDate": zod.coerce.date(),
+  "status": zod.enum(['paid', 'unpaid'])
+})).max(saveFinanceWorkspaceResponseStateOneInvoicesMax),
+  "countryCode": zod.string().regex(saveFinanceWorkspaceResponseStateOneCountryCodeRegExp),
+  "currencyCode": zod.string().regex(saveFinanceWorkspaceResponseStateOneCurrencyCodeRegExp),
+  "themeId": zod.enum(['forest', 'ocean', 'plum', 'sunset', 'midnight']),
+  "vatRatePercent": zod.number().min(saveFinanceWorkspaceResponseStateOneVatRatePercentMin).max(saveFinanceWorkspaceResponseStateOneVatRatePercentMax).nullable(),
+  "aiConsentAccepted": zod.boolean(),
+  "sampleOnly": zod.boolean(),
+  "taxRules": zod.array(zod.object({
+  "id": zod.string().min(1).max(saveFinanceWorkspaceResponseStateOneTaxRulesItemIdMax),
+  "name": zod.string().min(1).max(saveFinanceWorkspaceResponseStateOneTaxRulesItemNameMax),
+  "countryCode": zod.string().regex(saveFinanceWorkspaceResponseStateOneTaxRulesItemCountryCodeRegExp),
+  "ratePercent": zod.number().min(saveFinanceWorkspaceResponseStateOneTaxRulesItemRatePercentMin).max(saveFinanceWorkspaceResponseStateOneTaxRulesItemRatePercentMax),
+  "mode": zod.enum(['exclusive', 'inclusive'])
+})).max(saveFinanceWorkspaceResponseStateOneTaxRulesMax)
+}),zod.null()]),
+  "revision": zod.number().int().min(saveFinanceWorkspaceResponseRevisionMin),
+  "updatedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Get current indicative exchange rates
+ */
+export const getCurrencyRatesQueryBaseRegExp = new RegExp('^[A-Z]{3}$');
+
+
+export const GetCurrencyRatesQueryParams = zod.object({
+  "base": zod.coerce.string().regex(getCurrencyRatesQueryBaseRegExp)
+})
+
+export const getCurrencyRatesResponseBaseRegExp = new RegExp('^[A-Z]{3}$');
+export const getCurrencyRatesResponseRatesMinOne = 0;
+
+
+
+export const GetCurrencyRatesResponse = zod.object({
+  "base": zod.string().regex(getCurrencyRatesResponseBaseRegExp),
+  "rates": zod.record(zod.string(), zod.number().min(getCurrencyRatesResponseRatesMinOne)),
+  "updatedAt": zod.coerce.date(),
+  "provider": zod.enum(['ExchangeRate-API'])
 })
 
 

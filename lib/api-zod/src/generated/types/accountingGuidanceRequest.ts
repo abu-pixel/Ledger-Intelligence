@@ -7,6 +7,7 @@
  */
 
 export interface AccountingGuidanceRequest {
+  consentAccepted: true;
   /**
      * @minLength 1
      * @maxLength 1200

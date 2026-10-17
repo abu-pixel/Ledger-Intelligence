@@ -92,7 +92,11 @@ export default function AssistantScreen() {
       { id: `user-${Date.now()}`, role: 'user', text: question },
     ]);
 
-    const request: AccountingGuidanceRequest = { question, ...requestSummary };
+    const request: AccountingGuidanceRequest = {
+      consentAccepted: true,
+      question,
+      ...requestSummary,
+    };
     try {
       const result = await assistantMutation.mutateAsync({ data: request });
       setMessages((current) => [
