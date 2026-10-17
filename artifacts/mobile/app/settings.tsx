@@ -695,6 +695,7 @@ const styles = StyleSheet.create({
   consentButton: { borderWidth: 1, minHeight: 54, paddingHorizontal: 11, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 9 },
   consentText: { flex: 1, fontSize: 12, fontWeight: '600', lineHeight: 17 },
   assistantButton: { minHeight: 44, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  notNowButton: { minHeight: 35, alignItems: 'center', justifyContent: 'center' },
   modalPage: { flex: 1 },
   modalContent: { flex: 1, paddingHorizontal: 18, paddingTop: 8 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 16 },

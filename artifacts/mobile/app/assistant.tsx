@@ -81,8 +81,15 @@ export default function AssistantScreen() {
   const assistantAvailable = statusQuery.data?.available === true;
   const isSending = assistantMutation.isPending;
 
-  async function sendQuestion() {
-    const question = draft.trim();
+  const quickPrompts = [
+    'Summarize my cash flow this month',
+    'How should I handle my unpaid invoices?',
+    'What is my estimated monthly profit margin?',
+    `Bookkeeping tips for ${getCountryName(state.countryCode)}`,
+  ];
+
+  async function sendQuestion(customText?: string) {
+    const question = (customText ?? draft).trim();
     if (!question || isSending || !assistantAvailable || !state.aiConsentAccepted) return;
     if (question.length > 1200) return;
 
@@ -221,39 +228,67 @@ export default function AssistantScreen() {
             </Pressable>
           </View>
         ) : (
-          <View style={[styles.composer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              placeholder="Ask an accounting question…"
-              placeholderTextColor={colors.mutedForeground}
-              multiline
-              maxLength={1200}
-              editable={!isSending}
-              style={[styles.composerInput, { color: colors.foreground }]}
-              returnKeyType="send"
-              onSubmitEditing={() => void sendQuestion()}
-              accessibilityLabel="Accounting question"
-            />
-            <Pressable
-              onPress={() => void sendQuestion()}
-              disabled={!draft.trim() || isSending}
-              accessibilityRole="button"
-              accessibilityLabel="Send question"
-              style={({ pressed }) => [
-                styles.sendButton,
-                {
-                  backgroundColor: colors.primary,
-                  opacity: !draft.trim() || isSending ? 0.45 : pressed ? 0.8 : 1,
-                },
-              ]}
-            >
-              {isSending ? (
-                <ActivityIndicator size="small" color={colors.primaryForeground} />
-              ) : (
-                <Feather name="arrow-up" size={19} color={colors.primaryForeground} />
+          <View style={{ gap: 8 }}>
+            <FlatList
+              data={quickPrompts}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item) => item}
+              contentContainerStyle={{ paddingHorizontal: 14, gap: 8 }}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => void sendQuestion(item)}
+                  disabled={isSending}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.chip,
+                    {
+                      backgroundColor: colors.secondary,
+                      borderColor: colors.border,
+                      opacity: isSending ? 0.5 : pressed ? 0.75 : 1,
+                    },
+                  ]}
+                >
+                  <Feather name="zap" size={12} color={colors.primary} />
+                  <Text style={[styles.chipText, { color: colors.secondaryForeground }]}>{item}</Text>
+                </Pressable>
               )}
-            </Pressable>
+            />
+
+            <View style={[styles.composer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <TextInput
+                value={draft}
+                onChangeText={setDraft}
+                placeholder="Ask an accounting question…"
+                placeholderTextColor={colors.mutedForeground}
+                multiline
+                maxLength={1200}
+                editable={!isSending}
+                style={[styles.composerInput, { color: colors.foreground }]}
+                returnKeyType="send"
+                onSubmitEditing={() => void sendQuestion()}
+                accessibilityLabel="Accounting question"
+              />
+              <Pressable
+                onPress={() => void sendQuestion()}
+                disabled={!draft.trim() || isSending}
+                accessibilityRole="button"
+                accessibilityLabel="Send question"
+                style={({ pressed }) => [
+                  styles.sendButton,
+                  {
+                    backgroundColor: colors.primary,
+                    opacity: !draft.trim() || isSending ? 0.45 : pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                {isSending ? (
+                  <ActivityIndicator size="small" color={colors.primaryForeground} />
+                ) : (
+                  <Feather name="arrow-up" size={19} color={colors.primaryForeground} />
+                )}
+              </Pressable>
+            </View>
           </View>
         )}
         <Text style={[styles.disclaimer, { color: colors.mutedForeground }]}>
@@ -288,6 +323,8 @@ const styles = StyleSheet.create({
   notNowText: { fontSize: 11, fontWeight: '600' },
   retryButton: { minHeight: 39, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   retryText: { fontSize: 12, fontWeight: '700' },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 99, borderWidth: 1 },
+  chipText: { fontSize: 12, fontWeight: '600' },
   composer: { minHeight: 54, marginHorizontal: 14, borderWidth: 1, borderRadius: 18, padding: 6, flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
   composerInput: { flex: 1, maxHeight: 110, minHeight: 40, paddingHorizontal: 10, paddingTop: 10, paddingBottom: 7, fontSize: 14, lineHeight: 20 },
   sendButton: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
