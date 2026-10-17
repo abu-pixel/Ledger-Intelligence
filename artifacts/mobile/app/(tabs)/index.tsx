@@ -81,8 +81,8 @@ export default function HomeScreen() {
 
       <View style={styles.greeting}>
         <Text style={[styles.greetingLabel, { color: colors.mutedForeground }]}>{today}</Text>
-        <Text style={[styles.title, { color: colors.foreground }]}>Good morning,</Text>
-        <Text style={[styles.title, { color: colors.foreground }]}>Morgan.</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>Welcome back,</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>Ledgerly.</Text>
       </View>
 
         <Surface style={[styles.balanceCard, { backgroundColor: colors.primary, borderColor: colors.primary }]}>

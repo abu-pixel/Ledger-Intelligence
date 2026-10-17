@@ -84,7 +84,7 @@ export default function ToolsScreen() {
         enabled: /^[A-Z]{3}$/.test(state.currencyCode),
         staleTime: 60 * 60 * 1000,
         retry: 1,
-      },
+      } as any,
     },
   );
   const rate =
