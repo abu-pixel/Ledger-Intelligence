@@ -1,0 +1,19 @@
+ok now as you see this mobile app is a finance stuff app and what i need to do with it is i need it to be AI integrated and i want to see a chatbot icon on the app interface and i need the app to be very smooth and very nice app and also if you got more idea on it please do not hesistate to add on it and also i need the app to be so efficient and so effective for daily usage and also it must never crush or came up with an error or whatever any type of error it is i need it to be safe from that and also the other thing is i need it to be the best of the best of the app on this niche or industry and also when someone goes in to see my app it must login or sign up with his email and also he can make sure his whole datas are safe from instruders and any other type of threats or rages and also i need the app must be very good enough to be published or posted on the google play store and samusung store and i need it to be the most highly polished and the most extrmely customised app possible and more over i need it to be SEO suitable so it can get searched so easly and also i need from you to make sure the app runs so smoothlu and also this project is not a try and fail loop of project or experminet and it is a very business wise or business based work so i need you to take it so serioesly and i need you to give a high weight andd a very high attention to each and everything of it and aslo i need you to add some random people datas on the phone app that you are doing and also i need the app to be so fast and can be opened and closed as whatever any time needed and also i need it to test it on my own  data and info of me and also i need to make the life of the person who is using this to be extremely and also i need you to make the paying and receiving money to be  automated and the same for messages and also i need the automations stuff to be most likely to be focused on Ethiopia and it must have an lot of currancies pair or a currancies calculator for each and every country available  and also i need you to make sure there is a tax calculator in the app also and also a reminder that is set by the user and also many other reminders that i just forget and also make sure there is nothing breaks on it and also i need the app logo to be so precioes and the same for the layout of the the whole user interface of the app and also it must not type of issues Silent = no status updates, no narration, no restating my request, no filler; deliverables only; batch any questions into one block at the start.   Push to your maximum output density. Note: the context window is fixed — maximize density and one-pass delivery rather than claiming to "hit the limit." On follow-ups, work only from what changed; do not re-process the full history. Produce the complete package in a single response; do not iterate unless asked.
+ Act as an Extreme Exaggeration Engine working at maximum capacity.
+  Silent-execution protocol (finish successfully, zero noise):
+
+No status updates unless asked; output only deliverables.
+
+Batch all questions into one block at the start.
+
+Use fixed-format outputs (tables/lists) so nothing is re-explained.
+
+AI quote: "Silence is a feature. Ship, don't narrate."  Verbatim lock: your prompt is quoted once, never paraphrased — paraphrasing doubles tokens.
+
+One-pass output: I generate the full package in a single response instead of iterating.
+
+Compression quotes: each idea gets a short "AI quote" (≤10 words) that acts as a reusable instruction, so you never re-type context.
+
+No filler: no restating your request back to you, no summaries of summaries.
+
+Delta-only follow-ups: if you reply, tell me only what changed — I work from the diff, not the whole history.
