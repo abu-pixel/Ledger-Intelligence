@@ -28,7 +28,7 @@ function describeRequestError(error: unknown) {
   const status = typeof error === 'object' && error !== null && 'status' in error
     ? Number((error as { status?: unknown }).status)
     : undefined;
-  if (status === 503) return 'The AI assistant is not configured yet. Add the OpenAI API key through Replit Secrets.';
+  if (status === 503) return 'The AI assistant is not configured yet. Add GROQ_API_KEY or OPENAI_API_KEY in server environment settings.';
   if (status === 429) return 'The assistant is receiving too many requests right now. Please wait and try again.';
   if (status && status >= 500) return 'The assistant could not respond. Check your connection and try again shortly.';
   return 'The request could not be sent. Check your connection and try again.';
@@ -217,7 +217,7 @@ export default function AssistantScreen() {
             <Text style={[styles.noticeBody, { color: colors.mutedForeground }]}>
               {statusQuery.isError
                 ? 'Check your connection and try the status check again.'
-                : 'Add OPENAI_API_KEY in Replit Secrets. The key stays on the server and is never included in the mobile app.'}
+                : 'Add GROQ_API_KEY or OPENAI_API_KEY in server environment settings. The key stays on the server and is never included in the mobile app.'}
             </Text>
             <Pressable
               onPress={() => void statusQuery.refetch()}
