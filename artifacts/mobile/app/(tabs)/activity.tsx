@@ -57,7 +57,7 @@ export default function ActivityScreen() {
 
   return (
     <AppPage>
-      <BrandHeader eyebrow="SAMPLE BUSINESS" />
+      <BrandHeader />
       <PageHeading
         title="Activity"
         subtitle="Every inflow and outflow, in one place."

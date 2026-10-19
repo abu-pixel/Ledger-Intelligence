@@ -48,13 +48,15 @@ export function AppPage({ children }: { children: ReactNode }) {
 }
 
 export function BrandHeader({
-  eyebrow = 'NORTHSTAR STUDIO',
+  eyebrow,
   trailing,
 }: {
   eyebrow?: string;
   trailing?: ReactNode;
 }) {
   const colors = useColors();
+  const { state } = useFinance();
+  const displayEyebrow = (eyebrow ?? state.businessName ?? '').toUpperCase() || 'MY BUSINESS';
   const headerAction = trailing ?? (
     <Pressable
       onPress={() => router.push('/settings')}
@@ -76,7 +78,7 @@ export function BrandHeader({
         </View>
         <View>
           <Text style={[styles.brandName, { color: colors.foreground }]}>Ledgerly</Text>
-          <Text style={[styles.eyebrow, { color: colors.mutedForeground }]}>{eyebrow}</Text>
+          <Text style={[styles.eyebrow, { color: colors.mutedForeground }]}>{displayEyebrow}</Text>
         </View>
       </View>
       {headerAction}
