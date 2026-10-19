@@ -118,7 +118,7 @@ export default function InvoicesScreen() {
 
   return (
     <AppPage>
-      <BrandHeader eyebrow="SAMPLE BUSINESS" />
+      <BrandHeader />
       <PageHeading title="Invoices" subtitle="Keep tabs on what’s coming in." />
 
       <Surface style={[styles.dueCard, { backgroundColor: colors.primary, borderColor: colors.primary }]}>

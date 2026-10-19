@@ -42,6 +42,9 @@ export type TaxRule = {
 };
 
 type FinanceState = {
+  userName: string;
+  businessName: string;
+  onboardingCompleted: boolean;
   openingCash: number;
   transactions: Transaction[];
   invoices: Invoice[];
@@ -77,6 +80,7 @@ type FinanceContextValue = {
   updateTheme: (themeId: ThemeId) => void;
   updateVatRate: (rate: number | null) => void;
   setAiConsentAccepted: (accepted: boolean) => void;
+  setOnboardingProfile: (userName: string, businessName: string) => void;
   addTaxRule: (rule: NewTaxRule) => void;
   deleteTaxRule: (ruleId: string) => void;
   retrySync: () => void;
@@ -109,113 +113,21 @@ function createId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function createSampleState(): FinanceState {
+function createInitialState(): FinanceState {
   return {
-    openingCash: 36500,
-    countryCode: 'ET',
-    currencyCode: 'ETB',
+    userName: '',
+    businessName: '',
+    onboardingCompleted: false,
+    openingCash: 0,
+    countryCode: 'US',
+    currencyCode: 'USD',
     themeId: 'forest',
-    vatRatePercent: 15,
+    vatRatePercent: null,
     aiConsentAccepted: false,
-    sampleOnly: true,
+    sampleOnly: false,
     taxRules: [],
-    transactions: [
-      {
-        id: 'sample-1',
-        title: 'Northstar retainer',
-        category: 'Client income',
-        amount: 8400,
-        kind: 'income',
-        date: dateAtMonthOffset(0, 12),
-      },
-      {
-        id: 'sample-2',
-        title: 'Online store sales',
-        category: 'Sales',
-        amount: 5200,
-        kind: 'income',
-        date: dateAtMonthOffset(0, 10),
-      },
-      {
-        id: 'sample-3',
-        title: 'Team payroll',
-        category: 'Payroll',
-        amount: 4250,
-        kind: 'expense',
-        date: dateAtMonthOffset(0, 8),
-      },
-      {
-        id: 'sample-4',
-        title: 'Studio lease',
-        category: 'Rent',
-        amount: 1850,
-        kind: 'expense',
-        date: dateAtMonthOffset(0, 5),
-      },
-      {
-        id: 'sample-5',
-        title: 'Cloud tools',
-        category: 'Software',
-        amount: 329.5,
-        kind: 'expense',
-        date: dateAtMonthOffset(0, 3),
-      },
-      {
-        id: 'sample-6',
-        title: 'Northstar retainer',
-        category: 'Client income',
-        amount: 5900,
-        kind: 'income',
-        date: dateAtMonthOffset(1, 12),
-      },
-      {
-        id: 'sample-7',
-        title: 'Tax preparation',
-        category: 'Professional services',
-        amount: 480,
-        kind: 'expense',
-        date: dateAtMonthOffset(1, 5),
-      },
-      {
-        id: 'sample-8',
-        title: 'Wholesale order',
-        category: 'Sales',
-        amount: 4400,
-        kind: 'income',
-        date: dateAtMonthOffset(2, 12),
-      },
-      {
-        id: 'sample-9',
-        title: 'Shipping supplies',
-        category: 'Supplies',
-        amount: 780,
-        kind: 'expense',
-        date: dateAtMonthOffset(2, 4),
-      },
-    ],
-    invoices: [
-      {
-        id: 'inv-1',
-        client: 'Arc & Pine Studio',
-        amount: 4300,
-        dueDate: dateWithOffset(6),
-        status: 'unpaid',
-      },
-      {
-        id: 'inv-2',
-        client: 'Cornerstone Market',
-        amount: 2100,
-        dueDate: dateWithOffset(12),
-        status: 'unpaid',
-      },
-      {
-        id: 'inv-3',
-        client: 'Levity Goods',
-        amount: 3500,
-        dueDate: dateWithOffset(-9),
-        status: 'paid',
-      },
-    ],
+    transactions: [],
+    invoices: [],
   };
 }
 
@@ -308,13 +220,18 @@ function migrateSavedState(value: unknown): FinanceState {
       value.vatRatePercent <= 100)
       ? value.vatRatePercent
       : defaultVatRate(countryCode);
-  const inferredSampleOnly =
-    value.openingCash === 36500 &&
-    value.transactions.every((item) => item.id.startsWith('sample-')) &&
-    value.invoices.every((item) => /^inv-\d+$/.test(item.id));
+  const userName = typeof value.userName === 'string' ? value.userName : '';
+  const businessName = typeof value.businessName === 'string' ? value.businessName : '';
+  const onboardingCompleted =
+    typeof value.onboardingCompleted === 'boolean'
+      ? value.onboardingCompleted
+      : Boolean(userName && businessName);
 
   return {
-    openingCash: value.openingCash,
+    userName,
+    businessName,
+    onboardingCompleted,
+    openingCash: typeof value.openingCash === 'number' && Number.isFinite(value.openingCash) ? value.openingCash : 0,
     transactions: value.transactions,
     invoices: value.invoices,
     countryCode,
@@ -322,8 +239,7 @@ function migrateSavedState(value: unknown): FinanceState {
     themeId,
     vatRatePercent,
     aiConsentAccepted: value.aiConsentAccepted === true,
-    sampleOnly:
-      typeof value.sampleOnly === 'boolean' ? value.sampleOnly : inferredSampleOnly,
+    sampleOnly: false,
     taxRules:
       Array.isArray(value.taxRules) && value.taxRules.every(isTaxRule)
         ? value.taxRules
@@ -388,7 +304,7 @@ export function FinanceProvider({
   children: ReactNode;
   userId: string | null;
 }) {
-  const [state, setState] = useState<FinanceState>(createSampleState);
+  const [state, setState] = useState<FinanceState>(createInitialState);
   const [isReady, setIsReady] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(userId ? 'loading' : 'local');
@@ -406,9 +322,9 @@ export function FinanceProvider({
   useEffect(() => {
     let active = true;
     setIsReady(false);
-    setState(createSampleState());
+    setState(createInitialState());
     setLegacyState(null);
-    stateRef.current = createSampleState();
+    stateRef.current = createInitialState();
     localUpdatedAtRef.current = 0;
     remoteRevisionRef.current = 0;
     remoteReadyRef.current = false;
@@ -666,6 +582,15 @@ export function FinanceProvider({
     setState((current) => ({ ...current, aiConsentAccepted: accepted }));
   }, []);
 
+  const setOnboardingProfile = useCallback((userName: string, businessName: string) => {
+    setState((current) => ({
+      ...current,
+      userName: userName.trim(),
+      businessName: businessName.trim(),
+      onboardingCompleted: true,
+    }));
+  }, []);
+
   const addTaxRule = useCallback((rule: NewTaxRule) => {
     if (
       !rule.name.trim() ||
@@ -752,13 +677,16 @@ export function FinanceProvider({
 
   const resetSampleWorkspace = useCallback(() => {
     setState((current) => ({
-      ...createSampleState(),
+      ...createInitialState(),
       countryCode: current.countryCode,
       currencyCode: current.currencyCode,
       themeId: current.themeId,
       vatRatePercent: current.vatRatePercent,
       aiConsentAccepted: current.aiConsentAccepted,
       taxRules: current.taxRules,
+      userName: '',
+      businessName: '',
+      onboardingCompleted: false,
     }));
   }, []);
 
@@ -780,6 +708,7 @@ export function FinanceProvider({
       updateTheme,
       updateVatRate,
       setAiConsentAccepted,
+      setOnboardingProfile,
       addTaxRule,
       deleteTaxRule,
       retrySync,
@@ -806,6 +735,7 @@ export function FinanceProvider({
       updateTheme,
       updateVatRate,
       setAiConsentAccepted,
+      setOnboardingProfile,
       addTaxRule,
       deleteTaxRule,
       retrySync,

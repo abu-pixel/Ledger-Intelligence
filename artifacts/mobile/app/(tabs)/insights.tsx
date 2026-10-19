@@ -41,8 +41,8 @@ export default function InsightsScreen() {
 
   function confirmReset() {
     Alert.alert(
-      'Reset the sample workspace?',
-      'This replaces this device’s saved ledger and invoices with the original sample data.',
+      'Reset workspace?',
+      'This clears all transactions, invoices, and profile settings on this device and returns to onboarding.',
       [
         { text: 'Keep my data', style: 'cancel' },
         { text: 'Reset workspace', style: 'destructive', onPress: resetSampleWorkspace },
@@ -84,7 +84,7 @@ export default function InsightsScreen() {
 
   return (
     <AppPage>
-      <BrandHeader eyebrow="LOCAL LEDGER SIGNALS" />
+      <BrandHeader />
       <PageHeading title="Insights" subtitle="A quick read of the numbers you’ve recorded." />
 
       <Pressable
@@ -132,7 +132,7 @@ export default function InsightsScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.cashLabel, { color: colors.mutedForeground }]}>
-            {state.sampleOnly ? 'Sample cash balance' : 'Recorded cash balance'}
+            Recorded cash balance
           </Text>
           <Text style={[styles.cashValue, { color: colors.foreground }]}>
             {formatCurrency(findings.cash, state.currencyCode, state.countryCode)}
@@ -148,7 +148,7 @@ export default function InsightsScreen() {
       </View>
 
       <Pressable onPress={confirmReset} style={styles.resetButton} accessibilityRole="button">
-        <Text style={[styles.resetText, { color: colors.destructive }]}>Reset sample workspace</Text>
+        <Text style={[styles.resetText, { color: colors.destructive }]}>Reset workspace</Text>
       </Pressable>
     </AppPage>
   );

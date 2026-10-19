@@ -80,7 +80,7 @@ export default function ReportsScreen() {
 
   return (
     <AppPage>
-      <BrandHeader eyebrow="SAMPLE BUSINESS" />
+      <BrandHeader />
       <PageHeading
         title="Reports"
         subtitle="A clear view of how the business is moving."

@@ -382,9 +382,7 @@ export default function SettingsScreen() {
             <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
           </Pressable>
           <Text style={[styles.helperText, { color: colors.mutedForeground }]}>
-            {state.sampleOnly
-              ? 'The sample ledger follows the country’s listed currency. Choose another books currency if needed.'
-              : 'Changing country keeps your books currency. Changing books currency only changes labels—no exchange conversion is applied.'}
+            Changing country keeps your books currency. Changing books currency only changes labels—no exchange conversion is applied.
           </Text>
         </Surface>
       </View>
@@ -530,7 +528,7 @@ export default function SettingsScreen() {
         <Surface style={styles.preferenceCard}>
           <Text style={[styles.selectorTitle, { color: colors.foreground }]}>Accounting assistant privacy</Text>
           <Text style={[styles.helperText, { color: colors.mutedForeground }]}>
-            If enabled, your question, country/currency, and aggregate cash-flow and invoice totals are sent to OpenAI through the app server. The app does not send receipt photos, client names, or transaction descriptions, and it does not save chat history. OpenAI processing remains subject to its service terms.
+            If enabled, your question, country/currency, and aggregate cash-flow and invoice totals are sent to the AI assistant through the app server. The app does not send receipt photos, client names, or transaction descriptions, and it does not save chat history.
           </Text>
           <Pressable
             onPress={() => setAiConsentAccepted(!state.aiConsentAccepted)}

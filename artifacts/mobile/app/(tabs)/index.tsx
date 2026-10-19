@@ -53,36 +53,30 @@ export default function HomeScreen() {
 
   const outstanding = totals.unpaidInvoices.reduce((sum, item) => sum + item.amount, 0);
 
+  const greetingName = state.userName ? state.userName.split(' ')[0] : 'there';
+
   return (
     <AppPage>
       <BrandHeader
         trailing={
-          <View style={styles.headerActions}>
-            <View style={[styles.sampleBadge, { backgroundColor: colors.accent }]}>
-              <View style={[styles.sampleDot, { backgroundColor: colors.primary }]} />
-              <Text style={[styles.sampleBadgeText, { color: colors.accentForeground }]}>
-                {state.sampleOnly ? 'SAMPLE' : 'LOCAL LEDGER'}
-              </Text>
-            </View>
-            <Pressable
-              onPress={() => router.push('/settings')}
-              accessibilityRole="button"
-              accessibilityLabel="Open settings"
-              style={({ pressed }) => [
-                styles.settingsButton,
-                { backgroundColor: colors.secondary, opacity: pressed ? 0.75 : 1 },
-              ]}
-            >
-              <Feather name="settings" size={17} color={colors.secondaryForeground} />
-            </Pressable>
-          </View>
+          <Pressable
+            onPress={() => router.push('/settings')}
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
+            style={({ pressed }) => [
+              styles.settingsButton,
+              { backgroundColor: colors.secondary, opacity: pressed ? 0.75 : 1 },
+            ]}
+          >
+            <Feather name="settings" size={17} color={colors.secondaryForeground} />
+          </Pressable>
         }
       />
 
       <View style={styles.greeting}>
         <Text style={[styles.greetingLabel, { color: colors.mutedForeground }]}>{today}</Text>
         <Text style={[styles.title, { color: colors.foreground }]}>Welcome back,</Text>
-        <Text style={[styles.title, { color: colors.foreground }]}>Ledgerly.</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>{greetingName}.</Text>
       </View>
 
         <Surface style={[styles.balanceCard, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
@@ -97,7 +91,7 @@ export default function HomeScreen() {
           {formatCurrency(totals.balance, state.currencyCode, state.countryCode)}
         </Text>
         <Text style={[styles.balanceFootnote, { color: colors.primaryForeground }]}>
-          {state.sampleOnly ? 'Across your sample business ledger' : 'Based on recorded transactions'}
+          Based on recorded transactions
         </Text>
         <View style={[styles.balanceDivider, { backgroundColor: colors.primaryForeground }]} />
         <View style={styles.balanceBottom}>

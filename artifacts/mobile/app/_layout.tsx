@@ -4,6 +4,7 @@ import { ClerkLoaded, ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FinanceProvider } from "@/contexts/FinanceContext";
+import { OnboardingModal } from "@/components/OnboardingModal";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts } from "@expo-google-fonts/inter";
 import { Redirect, Stack, useSegments } from "expo-router";
@@ -30,12 +31,15 @@ if (apiDomain) {
 
 function RootNavigator() {
   return (
-    <Stack screenOptions={{ headerBackTitle: "Back" }}>
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="settings" options={{ headerShown: false }} />
-      <Stack.Screen name="assistant" options={{ headerShown: false }} />
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerBackTitle: "Back" }}>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen name="assistant" options={{ headerShown: false }} />
+      </Stack>
+      <OnboardingModal />
+    </>
   );
 }
 
