@@ -22,15 +22,16 @@ export function OnboardingModal() {
   const [error, setError] = useState('');
 
   const visible =
-    !isReady ? false : !state.onboardingCompleted || !state.userName.trim() || !state.businessName.trim();
+    !isReady ? false : !state.onboardingCompleted || !state.userName.trim();
 
   function handleSave() {
-    if (!userName.trim() || !businessName.trim()) {
-      setError('Please enter both your name and your business name.');
+    if (!userName.trim()) {
+      setError('Please enter your name.');
       return;
     }
     setError('');
-    setOnboardingProfile(userName, businessName);
+    const finalBusiness = businessName.trim() || userName.trim();
+    setOnboardingProfile(userName.trim(), finalBusiness);
   }
 
   if (!visible) return null;
@@ -76,7 +77,7 @@ export function OnboardingModal() {
             </View>
 
             <View style={styles.fieldBlock}>
-              <Text style={[styles.label, { color: colors.foreground }]}>Business / Studio Name</Text>
+              <Text style={[styles.label, { color: colors.foreground }]}>Business / Studio Name (optional)</Text>
               <TextInput
                 value={businessName}
                 onChangeText={setBusinessName}

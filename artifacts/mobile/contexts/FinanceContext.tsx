@@ -96,13 +96,6 @@ const ACCOUNT_STORAGE_PREFIX = 'ledgerly.finance.account.v2.';
 const LEGACY_DISMISSED_PREFIX = 'ledgerly.finance.legacy-dismissed.';
 const FinanceContext = createContext<FinanceContextValue | null>(null);
 
-function dateAtMonthOffset(monthsAgo: number, day = 12) {
-  const date = new Date();
-  date.setDate(day);
-  date.setMonth(date.getMonth() - monthsAgo);
-  return date.toISOString();
-}
-
 function dateWithOffset(days: number) {
   const date = new Date();
   date.setDate(date.getDate() + days);
@@ -311,7 +304,7 @@ export function FinanceProvider({
   const [syncError, setSyncError] = useState<string | null>(null);
   const [legacyState, setLegacyState] = useState<FinanceState | null>(null);
   const [retryVersion, setRetryVersion] = useState(0);
-  const storageKey = userId ? `${ACCOUNT_STORAGE_PREFIX}${userId}` : null;
+  const storageKey = userId ? `${ACCOUNT_STORAGE_PREFIX}${userId}` : STORAGE_KEY;
   const stateRef = useRef(state);
   const localUpdatedAtRef = useRef(0);
   const remoteRevisionRef = useRef(0);
@@ -334,7 +327,7 @@ export function FinanceProvider({
 
     async function load() {
       try {
-        if (!userId || !storageKey) return;
+        if (!storageKey) return;
         const saved = await AsyncStorage.getItem(storageKey);
         if (saved) {
           const parsed = parseStoredWorkspace(saved);
