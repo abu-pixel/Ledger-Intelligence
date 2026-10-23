@@ -28,7 +28,7 @@ function describeRequestError(error: unknown) {
   const status = typeof error === 'object' && error !== null && 'status' in error
     ? Number((error as { status?: unknown }).status)
     : undefined;
-  if (status === 503) return 'The AI assistant is not configured yet. Add EXPO_PUBLIC_GROQ_API_KEY or GROQ_API_KEY in environment settings.';
+  if (status === 503) return 'The AI assistant service is temporarily unavailable or undergoing maintenance. Please try again later.';
   if (status === 429) return 'The assistant is receiving too many requests right now. Please wait and try again.';
   if (status && status >= 500) return 'The assistant could not respond. Check your connection and try again shortly.';
   return 'The request could not be sent. Check your connection and try again.';
@@ -212,12 +212,12 @@ export default function AssistantScreen() {
           <View style={[styles.notice, { backgroundColor: colors.warningSurface, borderColor: colors.border }]}>
             <Feather name={statusQuery.isError ? 'wifi-off' : 'settings'} size={18} color={colors.primary} />
             <Text style={[styles.noticeTitle, { color: colors.foreground }]}>
-              {statusQuery.isError ? 'Could not reach the AI service' : 'Assistant setup is incomplete'}
+              {statusQuery.isError ? 'Could not reach the AI service' : 'Assistant unavailable'}
             </Text>
             <Text style={[styles.noticeBody, { color: colors.mutedForeground }]}>
               {statusQuery.isError
-                ? 'Check your connection and try the status check again.'
-                : 'Add EXPO_PUBLIC_GROQ_API_KEY or GROQ_API_KEY in server environment settings.'}
+                ? 'Check your internet connection and try the status check again.'
+                : 'The AI assistant service is temporarily offline or undergoing maintenance. Please try again later.'}
             </Text>
             <Pressable
               onPress={() => void statusQuery.refetch()}

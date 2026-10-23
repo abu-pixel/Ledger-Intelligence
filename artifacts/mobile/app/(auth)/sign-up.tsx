@@ -8,9 +8,14 @@ import { AuthShell } from "@/components/AuthShell";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { useColors } from "@/hooks/useColors";
 
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export default function SignUpScreen() {
   const colors = useColors();
   const { signUp, fetchStatus } = useSignUp();
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
@@ -31,13 +36,38 @@ export default function SignUpScreen() {
   }
 
   async function createAccount() {
-    if (busy || !email.trim() || !password) return;
+    const trimmedName = fullName.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (!trimmedName) {
+      setMessage("Please enter your full name.");
+      return;
+    }
+
+    if (!isValidEmail(trimmedEmail)) {
+      setMessage("Please enter a valid email address.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setMessage("Password must be at least 8 characters long.");
+      return;
+    }
+
+    if (busy) return;
     setBusy(true);
     setMessage("");
+
+    const nameParts = trimmedName.split(/\s+/);
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+
     try {
       const { error } = await signUp.password({
-        emailAddress: email.trim().toLowerCase(),
+        emailAddress: trimmedEmail,
         password,
+        firstName,
+        lastName,
       });
       if (error) {
         setMessage(error.message || "We couldn't create your account. Check your details and try again.");
@@ -75,7 +105,7 @@ export default function SignUpScreen() {
   return (
     <AuthShell
       title={needsCode ? "Verify your email" : "Create your account"}
-      subtitle={needsCode ? "Confirm your address to protect your account." : "Create a secure account for your business books."}
+      subtitle={needsCode ? "Enter the verification code sent to your email to activate your account." : "Create a secure account for your business books."}
     >
       {needsCode ? (
         <>
@@ -103,6 +133,15 @@ export default function SignUpScreen() {
       ) : (
         <>
           <AuthField
+            label="Full name"
+            value={fullName}
+            onChangeText={setFullName}
+            textContentType="name"
+            autoCapitalize="words"
+            autoComplete="name"
+            returnKeyType="next"
+          />
+          <AuthField
             label="Email address"
             value={email}
             onChangeText={setEmail}
@@ -129,7 +168,7 @@ export default function SignUpScreen() {
             title="Create account"
             onPress={() => void createAccount()}
             loading={busy || fetchStatus === "fetching"}
-            disabled={!email.trim() || password.length < 8}
+            disabled={!fullName.trim() || !email.trim() || password.length < 8}
           />
           <View style={styles.divider}>
             <View style={[styles.line, { backgroundColor: colors.border }]} />
