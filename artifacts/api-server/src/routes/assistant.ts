@@ -23,8 +23,8 @@ const assistantRateLimit = rateLimit({
 
 router.get("/ai/status", (_req, res) => {
   const apiKey =
-    process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim() ||
     process.env.GROQ_API_KEY?.trim() ||
+    process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim() ||
     process.env.OPENAI_API_KEY?.trim();
   const data = GetAiStatusResponse.parse({
     available: Boolean(apiKey),
@@ -44,13 +44,13 @@ router.post("/ai/accounting-guidance", requireAuth, assistantRateLimit, async (r
     return;
   }
 
-  const groqKey = process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim() || process.env.GROQ_API_KEY?.trim();
+  const groqKey = process.env.GROQ_API_KEY?.trim() || process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim();
   const openaiKey = process.env.OPENAI_API_KEY?.trim();
   const apiKey = groqKey || openaiKey;
 
   if (!apiKey) {
     res.status(503).json({
-      error: "The AI assistant is not configured yet. Add EXPO_PUBLIC_GROQ_API_KEY or GROQ_API_KEY in environment settings.",
+      error: "The AI assistant is not configured on the server. Please contact system support.",
     });
     return;
   }
