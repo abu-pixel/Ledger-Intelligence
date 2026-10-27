@@ -105,6 +105,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
         <SafeAreaProvider>
+          {/* REMINDER: Go to the Clerk Dashboard and enable 'Native API' under the 'Native applications' tab. */}
           <ClerkProvider
             publishableKey={publishableKey}
             tokenCache={tokenCache}
