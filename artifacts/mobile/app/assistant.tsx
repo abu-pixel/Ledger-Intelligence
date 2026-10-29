@@ -37,8 +37,17 @@ function describeRequestError(error: unknown) {
 export default function AssistantScreen() {
   const colors = useColors();
   const { state, setAiConsentAccepted } = useFinance();
-  const statusQuery = useGetAiStatus();
-  const assistantMutation = useAskAccountingAssistant();
+  const groqApiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim();
+  const statusQuery = useGetAiStatus({
+    request: {
+      headers: groqApiKey ? { 'x-groq-api-key': groqApiKey } : undefined,
+    },
+  });
+  const assistantMutation = useAskAccountingAssistant({
+    request: {
+      headers: groqApiKey ? { 'x-groq-api-key': groqApiKey } : undefined,
+    },
+  });
   const [draft, setDraft] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -78,7 +87,7 @@ export default function AssistantScreen() {
   }, [state]);
 
   const orderedMessages = useMemo(() => [...messages].reverse(), [messages]);
-  const assistantAvailable = statusQuery.data?.available === true;
+  const assistantAvailable = statusQuery.data?.available === true || Boolean(groqApiKey);
   const isSending = assistantMutation.isPending;
 
   const quickPrompts = [
@@ -105,7 +114,9 @@ export default function AssistantScreen() {
       ...requestSummary,
     };
     try {
-      const result = await assistantMutation.mutateAsync({ data: request });
+      const result = await assistantMutation.mutateAsync({
+        data: request,
+      });
       setMessages((current) => [
         ...current,
         { id: `assistant-${Date.now()}`, role: 'assistant', text: result.answer },
@@ -190,7 +201,7 @@ export default function AssistantScreen() {
             </View>
             <Text style={[styles.noticeTitle, { color: colors.foreground }]}>Choose whether to share a limited summary</Text>
             <Text style={[styles.noticeBody, { color: colors.mutedForeground }]}>
-              Your question, country/currency, and aggregate cash-flow and invoice totals will be sent to OpenAI through the app server. Receipt images, customer names, and transaction descriptions are not sent. Chat history is not saved by the app.
+              Your question, country/currency, and aggregate cash-flow and invoice totals will be sent to the AI assistant through the app server. Receipt images, customer names, and transaction descriptions are not sent. Chat history is not saved by the app.
             </Text>
             <Pressable
               onPress={() => setAiConsentAccepted(true)}

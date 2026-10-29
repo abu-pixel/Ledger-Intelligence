@@ -90,7 +90,7 @@ export default function ToolsScreen() {
   const rate =
     normalizedQuote === state.currencyCode
       ? 1
-      : ratesQuery.data?.rates[normalizedQuote];
+      : ratesQuery.data?.rates?.[normalizedQuote];
   const convertValue = parseLocalizedAmount(convertAmount, state.countryCode);
   const taxValue = parseLocalizedAmount(taxAmount, state.countryCode);
 

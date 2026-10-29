@@ -21,10 +21,11 @@ const assistantRateLimit = rateLimit({
   message: { error: "Please wait before sending another assistant question." },
 });
 
-router.get("/ai/status", (_req, res) => {
+router.get("/ai/status", (req, res) => {
   const apiKey =
     process.env.GROQ_API_KEY?.trim() ||
     process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim() ||
+    (req.headers["x-groq-api-key"] as string | undefined)?.trim() ||
     process.env.OPENAI_API_KEY?.trim();
   const data = GetAiStatusResponse.parse({
     available: Boolean(apiKey),
@@ -44,7 +45,10 @@ router.post("/ai/accounting-guidance", requireAuth, assistantRateLimit, async (r
     return;
   }
 
-  const groqKey = process.env.GROQ_API_KEY?.trim() || process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim();
+  const groqKey =
+    process.env.GROQ_API_KEY?.trim() ||
+    process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim() ||
+    (req.headers["x-groq-api-key"] as string | undefined)?.trim();
   const openaiKey = process.env.OPENAI_API_KEY?.trim();
   const apiKey = groqKey || openaiKey;
 
