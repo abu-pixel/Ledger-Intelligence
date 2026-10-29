@@ -12,8 +12,6 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { useAskAccountingAssistant, useGetAiStatus } from '@workspace/api-client-react';
-import type { AccountingGuidanceRequest } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useFinance } from '@/contexts/FinanceContext';
 import { getCountryName } from '@/lib/localization';
@@ -24,31 +22,11 @@ type ChatMessage = {
   text: string;
 };
 
-function describeRequestError(error: unknown) {
-  const status = typeof error === 'object' && error !== null && 'status' in error
-    ? Number((error as { status?: unknown }).status)
-    : undefined;
-  if (status === 503) return 'The AI assistant service is temporarily unavailable or undergoing maintenance. Please try again later.';
-  if (status === 429) return 'The assistant is receiving too many requests right now. Please wait and try again.';
-  if (status && status >= 500) return 'The assistant could not respond. Check your connection and try again shortly.';
-  return 'The request could not be sent. Check your connection and try again.';
-}
-
 export default function AssistantScreen() {
   const colors = useColors();
   const { state, setAiConsentAccepted } = useFinance();
-  const groqApiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim();
-  const statusQuery = useGetAiStatus({
-    request: {
-      headers: groqApiKey ? { 'x-groq-api-key': groqApiKey } : undefined,
-    },
-  });
-  const assistantMutation = useAskAccountingAssistant({
-    request: {
-      headers: groqApiKey ? { 'x-groq-api-key': groqApiKey } : undefined,
-    },
-  });
   const [draft, setDraft] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
@@ -87,8 +65,7 @@ export default function AssistantScreen() {
   }, [state]);
 
   const orderedMessages = useMemo(() => [...messages].reverse(), [messages]);
-  const assistantAvailable = statusQuery.data?.available === true || Boolean(groqApiKey);
-  const isSending = assistantMutation.isPending;
+  const groqApiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim();
 
   const quickPrompts = [
     'Summarize my cash flow this month',
@@ -99,7 +76,7 @@ export default function AssistantScreen() {
 
   async function sendQuestion(customText?: string) {
     const question = (customText ?? draft).trim();
-    if (!question || isSending || !assistantAvailable || !state.aiConsentAccepted) return;
+    if (!question || isSending || !state.aiConsentAccepted) return;
     if (question.length > 1200) return;
 
     setDraft('');
@@ -108,24 +85,86 @@ export default function AssistantScreen() {
       { id: `user-${Date.now()}`, role: 'user', text: question },
     ]);
 
-    const request: AccountingGuidanceRequest = {
-      consentAccepted: true,
-      question,
-      ...requestSummary,
-    };
+    const apiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim();
+    if (!apiKey) {
+      setMessages((current) => [
+        ...current,
+        { id: `error-${Date.now()}`, role: 'assistant', text: 'Groq API key invalid' },
+      ]);
+      return;
+    }
+
+    setIsSending(true);
+
     try {
-      const result = await assistantMutation.mutateAsync({
-        data: request,
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            {
+              role: 'system',
+              content: `You are Ledgerly's general accounting assistant for small businesses. Context: Country: ${requestSummary.countryName} (${requestSummary.countryCode}), Currency: ${requestSummary.currencyCode}, Cash Balance: ${requestSummary.cashBalance}, Monthly Income: ${requestSummary.currentMonthIncome}, Monthly Expenses: ${requestSummary.currentMonthExpense}, Outstanding Invoices: ${requestSummary.outstandingInvoiceAmount} (${requestSummary.unpaidInvoiceCount} unpaid). Keep responses clear, practical, and concise.`,
+            },
+            {
+              role: 'user',
+              content: question,
+            },
+          ],
+        }),
       });
+
+      const responseText = await response.text();
+      console.log('Groq response status:', response.status, 'body:', responseText.slice(0, 200));
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Groq API key invalid');
+        } else if (response.status === 400) {
+          throw new Error('Groq API key invalid or bad request (400)');
+        } else {
+          let msg = `Groq API error (${response.status})`;
+          try {
+            const errData = JSON.parse(responseText);
+            if (errData.error?.message) {
+              msg = errData.error.message;
+            }
+          } catch {}
+          throw new Error(msg);
+        }
+      }
+
+      if (!responseText.trim()) {
+        throw new Error('Groq returned empty response');
+      }
+
+      let data: any;
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        throw new Error('Groq returned empty response');
+      }
+
+      const answer = data.choices?.[0]?.message?.content?.trim();
+      if (!answer) {
+        throw new Error('Groq returned empty response');
+      }
+
       setMessages((current) => [
         ...current,
-        { id: `assistant-${Date.now()}`, role: 'assistant', text: result.answer },
+        { id: `assistant-${Date.now()}`, role: 'assistant', text: answer },
       ]);
-    } catch (error) {
+    } catch (error: any) {
       setMessages((current) => [
         ...current,
-        { id: `error-${Date.now()}`, role: 'assistant', text: describeRequestError(error) },
+        { id: `error-${Date.now()}`, role: 'assistant', text: error?.message || 'Groq API call failed' },
       ]);
+    } finally {
+      setIsSending(false);
     }
   }
 
@@ -144,7 +183,7 @@ export default function AssistantScreen() {
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>Accounting assistant</Text>
           <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>General guidance · not tax advice</Text>
         </View>
-        <View style={[styles.statusDot, { backgroundColor: assistantAvailable ? colors.primary : colors.mutedForeground }]} />
+        <View style={[styles.statusDot, { backgroundColor: Boolean(groqApiKey) ? colors.primary : colors.mutedForeground }]} />
       </View>
 
       <KeyboardAvoidingView
@@ -212,30 +251,6 @@ export default function AssistantScreen() {
             </Pressable>
             <Pressable onPress={() => router.back()} accessibilityRole="button" style={styles.notNowButton}>
               <Text style={[styles.notNowText, { color: colors.mutedForeground }]}>Not now</Text>
-            </Pressable>
-          </View>
-        ) : statusQuery.isLoading ? (
-          <View style={[styles.notice, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={[styles.noticeBody, { color: colors.mutedForeground }]}>Checking AI availability…</Text>
-          </View>
-        ) : !assistantAvailable ? (
-          <View style={[styles.notice, { backgroundColor: colors.warningSurface, borderColor: colors.border }]}>
-            <Feather name={statusQuery.isError ? 'wifi-off' : 'settings'} size={18} color={colors.primary} />
-            <Text style={[styles.noticeTitle, { color: colors.foreground }]}>
-              {statusQuery.isError ? 'Could not reach the AI service' : 'Assistant unavailable'}
-            </Text>
-            <Text style={[styles.noticeBody, { color: colors.mutedForeground }]}>
-              {statusQuery.isError
-                ? 'Check your internet connection and try the status check again.'
-                : 'The AI assistant service is temporarily offline or undergoing maintenance. Please try again later.'}
-            </Text>
-            <Pressable
-              onPress={() => void statusQuery.refetch()}
-              accessibilityRole="button"
-              style={[styles.retryButton, { backgroundColor: colors.secondary }]}
-            >
-              <Text style={[styles.retryText, { color: colors.secondaryForeground }]}>Check again</Text>
             </Pressable>
           </View>
         ) : (

@@ -17,7 +17,8 @@
       ]
     },
     "web": {
-      "favicon": "./assets/images/icon.png"
+      "favicon": "./assets/images/icon.png",
+      "output": "static"
     },
     "plugins": [
       "@clerk/expo",
