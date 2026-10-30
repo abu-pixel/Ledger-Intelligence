@@ -145,6 +145,7 @@ export default function AssistantScreen() {
         { id: `assistant-${Date.now()}`, role: 'assistant', text: replyText.trim() },
       ]);
     } catch (error: any) {
+      console.log("GROQ ERROR:", error);
       setMessages((current) => [
         ...current,
         { id: `error-${Date.now()}`, role: 'assistant', text: error?.message || 'Groq returned no content. Check API key and model.' },
