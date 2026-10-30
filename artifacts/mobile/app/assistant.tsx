@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useColors } from '@/hooks/useColors';
 import { useFinance } from '@/contexts/FinanceContext';
@@ -23,8 +23,17 @@ type ChatMessage = {
 };
 
 export default function AssistantScreen() {
+  const router = useRouter();
   const colors = useColors();
   const { state, setAiConsentAccepted } = useFinance();
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
+    }
+  };
   const [draft, setDraft] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -89,7 +98,7 @@ export default function AssistantScreen() {
     if (!apiKey) {
       setMessages((current) => [
         ...current,
-        { id: `error-${Date.now()}`, role: 'assistant', text: 'Groq API key invalid' },
+        { id: `error-${Date.now()}`, role: 'assistant', text: 'Groq returned no content. Check API key and model.' },
       ]);
       return;
     }
@@ -118,50 +127,27 @@ export default function AssistantScreen() {
         }),
       });
 
-      const responseText = await response.text();
-      console.log('Groq response status:', response.status, 'body:', responseText.slice(0, 200));
+      const data = await response.json();
+      console.log("GROQ RAW:", JSON.stringify(data));
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Groq API key invalid');
-        } else if (response.status === 400) {
-          throw new Error('Groq API key invalid or bad request (400)');
-        } else {
-          let msg = `Groq API error (${response.status})`;
-          try {
-            const errData = JSON.parse(responseText);
-            if (errData.error?.message) {
-              msg = errData.error.message;
-            }
-          } catch {}
-          throw new Error(msg);
-        }
+        const errorMsg = data?.error?.message || `Groq API error (${response.status})`;
+        throw new Error(errorMsg);
       }
 
-      if (!responseText.trim()) {
-        throw new Error('Groq returned empty response');
-      }
-
-      let data: any;
-      try {
-        data = JSON.parse(responseText);
-      } catch {
-        throw new Error('Groq returned empty response');
-      }
-
-      const answer = data.choices?.[0]?.message?.content?.trim();
-      if (!answer) {
-        throw new Error('Groq returned empty response');
+      const replyText = data?.choices?.[0]?.message?.content;
+      if (!replyText || !replyText.trim()) {
+        throw new Error('Groq returned no content. Check API key and model.');
       }
 
       setMessages((current) => [
         ...current,
-        { id: `assistant-${Date.now()}`, role: 'assistant', text: answer },
+        { id: `assistant-${Date.now()}`, role: 'assistant', text: replyText.trim() },
       ]);
     } catch (error: any) {
       setMessages((current) => [
         ...current,
-        { id: `error-${Date.now()}`, role: 'assistant', text: error?.message || 'Groq API call failed' },
+        { id: `error-${Date.now()}`, role: 'assistant', text: error?.message || 'Groq returned no content. Check API key and model.' },
       ]);
     } finally {
       setIsSending(false);
@@ -172,7 +158,7 @@ export default function AssistantScreen() {
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={handleBack}
           accessibilityRole="button"
           accessibilityLabel="Go back"
           style={[styles.headerButton, { backgroundColor: colors.secondary }]}
@@ -249,7 +235,7 @@ export default function AssistantScreen() {
             >
               <Text style={[styles.allowButtonText, { color: colors.primaryForeground }]}>Allow and continue</Text>
             </Pressable>
-            <Pressable onPress={() => router.back()} accessibilityRole="button" style={styles.notNowButton}>
+            <Pressable onPress={handleBack} accessibilityRole="button" style={styles.notNowButton}>
               <Text style={[styles.notNowText, { color: colors.mutedForeground }]}>Not now</Text>
             </Pressable>
           </View>
