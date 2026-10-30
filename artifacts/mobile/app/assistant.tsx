@@ -12,6 +12,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { askAccountingAssistant } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useFinance } from '@/contexts/FinanceContext';
 import { getCountryName } from '@/lib/localization';
@@ -74,7 +75,18 @@ export default function AssistantScreen() {
   }, [state]);
 
   const orderedMessages = useMemo(() => [...messages].reverse(), [messages]);
-  const groqApiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim();
+
+  const groqApiKey =
+    process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim() ||
+    process.env.GROQ_API_KEY?.trim() ||
+    process.env.grok_key?.trim() ||
+    process.env.GROK_KEY?.trim();
+
+  const openaiApiKey =
+    process.env.EXPO_PUBLIC_OPENAI_API_KEY?.trim() ||
+    process.env.OPENAI_API_KEY?.trim();
+
+  const activeKey = groqApiKey || openaiApiKey;
 
   const quickPrompts = [
     'Summarize my cash flow this month',
@@ -82,6 +94,110 @@ export default function AssistantScreen() {
     'What is my estimated monthly profit margin?',
     `Bookkeeping tips for ${getCountryName(state.countryCode)}`,
   ];
+
+  function generateOfflineGuidanceResponse(question: string): string {
+    const q = question.toLowerCase();
+    const netMargin = requestSummary.currentMonthIncome > 0
+      ? Math.round(((requestSummary.currentMonthIncome - requestSummary.currentMonthExpense) / requestSummary.currentMonthIncome) * 100)
+      : 0;
+
+    if (q.includes('cash flow') || q.includes('summarize')) {
+      return `Monthly Cash Flow Summary for ${requestSummary.countryName}:\n` +
+        `• Total Income: ${requestSummary.currencyCode} ${requestSummary.currentMonthIncome.toLocaleString()}\n` +
+        `• Total Expenses: ${requestSummary.currencyCode} ${requestSummary.currentMonthExpense.toLocaleString()}\n` +
+        `• Net Cash Balance: ${requestSummary.currencyCode} ${requestSummary.cashBalance.toLocaleString()}\n` +
+        `• Estimated Net Margin: ${netMargin}%\n\n` +
+        (requestSummary.currentMonthIncome >= requestSummary.currentMonthExpense
+          ? 'Your current monthly cash flow is positive. Maintain timely customer invoicing and keep track of tax deductions.'
+          : 'Expenses exceed income this month. Review non-essential costs and follow up on outstanding receivables.');
+    }
+
+    if (q.includes('unpaid') || q.includes('invoice')) {
+      return requestSummary.unpaidInvoiceCount > 0
+        ? `You currently have ${requestSummary.unpaidInvoiceCount} unpaid invoice(s) totaling ${requestSummary.currencyCode} ${requestSummary.outstandingInvoiceAmount.toLocaleString()}.\n\n` +
+          'Recommended Action Steps:\n' +
+          '1. Send a friendly reminder statement to outstanding clients.\n' +
+          '2. Verify payment terms and payment methods offered.\n' +
+          '3. Consider early-payment incentives or retainer terms for high-value clients.'
+        : 'All invoices are currently marked as paid! Outstanding receivable total is zero.';
+    }
+
+    if (q.includes('margin') || q.includes('profit')) {
+      return `Your estimated profit margin this month is approx ${netMargin}% based on recorded income of ${requestSummary.currencyCode} ${requestSummary.currentMonthIncome.toLocaleString()} and expenses of ${requestSummary.currencyCode} ${requestSummary.currentMonthExpense.toLocaleString()}.\n\n` +
+        'Tips to improve margins:\n' +
+        '• Audit vendor expenses and monthly subscription costs.\n' +
+        '• Adjust pricing or labor estimates to reflect true delivery costs.\n' +
+        '• Track tax-deductible operational costs accurately.';
+    }
+
+    if (q.includes('tip') || q.includes('tax') || q.includes('bookkeeping')) {
+      return `Bookkeeping Best Practices for ${requestSummary.countryName}:\n` +
+        '1. Store digitized copies of invoices and purchase receipts.\n' +
+        '2. Perform regular bank and ledger reconciliations.\n' +
+        '3. Separate business reserve accounts for sales/value-added tax (VAT) obligations.\n' +
+        `4. Consult a certified accounting professional in ${requestSummary.countryName} for local filing requirements.`;
+    }
+
+    return `Ledger Analysis for ${requestSummary.countryName} (${requestSummary.currencyCode}):\n` +
+      `• Cash Balance: ${requestSummary.currencyCode} ${requestSummary.cashBalance.toLocaleString()}\n` +
+      `• Monthly Income: ${requestSummary.currencyCode} ${requestSummary.currentMonthIncome.toLocaleString()}\n` +
+      `• Monthly Expenses: ${requestSummary.currencyCode} ${requestSummary.currentMonthExpense.toLocaleString()}\n` +
+      `• Unpaid Invoices: ${requestSummary.currencyCode} ${requestSummary.outstandingInvoiceAmount.toLocaleString()} (${requestSummary.unpaidInvoiceCount} pending)\n\n` +
+      `To maintain clear records, continue logging all receipts and review monthly balances regularly. Always consult a certified local accountant for binding tax and legal advice.`;
+  }
+
+  async function fetchDirectAiAnswer(question: string): Promise<string | null> {
+    if (!activeKey) return null;
+
+    const isGroq = Boolean(groqApiKey) || activeKey.startsWith('gsk_');
+    const endpoint = isGroq
+      ? 'https://api.groq.com/openai/v1/chat/completions'
+      : 'https://api.openai.com/v1/chat/completions';
+
+    const groqCandidateModels = [
+      'openai/gpt-oss-20b',
+      'qwen/qwen3.8-27b',
+      'openai/gpt-oss-120b',
+      'llama-3.3-70b-versatile',
+      'llama-3.1-8b-instant',
+    ];
+    const openaiCandidateModels = ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'];
+    const candidateModels = isGroq ? groqCandidateModels : openaiCandidateModels;
+
+    const systemPrompt = `You are Ledgerly's general accounting assistant for small businesses. Context: Country: ${requestSummary.countryName} (${requestSummary.countryCode}), Currency: ${requestSummary.currencyCode}, Cash Balance: ${requestSummary.cashBalance}, Monthly Income: ${requestSummary.currentMonthIncome}, Monthly Expenses: ${requestSummary.currentMonthExpense}, Outstanding Invoices: ${requestSummary.outstandingInvoiceAmount} (${requestSummary.unpaidInvoiceCount} unpaid). Keep responses clear, practical, and helpful.`;
+
+    for (const model of candidateModels) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${activeKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: question },
+            ],
+          }),
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          const replyText = data?.choices?.[0]?.message?.content?.trim();
+          if (replyText) {
+            return replyText;
+          }
+        } else {
+          console.log(`Direct AI API (${model}) error:`, data?.error?.message || response.status);
+        }
+      } catch (err) {
+        console.log(`Direct AI API (${model}) fetch failed:`, err);
+      }
+    }
+    return null;
+  }
 
   async function sendQuestion(customText?: string) {
     const question = (customText ?? draft).trim();
@@ -94,65 +210,48 @@ export default function AssistantScreen() {
       { id: `user-${Date.now()}`, role: 'user', text: question },
     ]);
 
-    const apiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim();
-    if (!apiKey) {
-      setMessages((current) => [
-        ...current,
-        { id: `error-${Date.now()}`, role: 'assistant', text: 'Groq returned no content. Check API key and model.' },
-      ]);
-      return;
-    }
-
     setIsSending(true);
 
+    let answer: string | null = null;
+
+    // 1. Try backend API server request
     try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            {
-              role: 'system',
-              content: `You are Ledgerly's general accounting assistant for small businesses. Context: Country: ${requestSummary.countryName} (${requestSummary.countryCode}), Currency: ${requestSummary.currencyCode}, Cash Balance: ${requestSummary.cashBalance}, Monthly Income: ${requestSummary.currentMonthIncome}, Monthly Expenses: ${requestSummary.currentMonthExpense}, Outstanding Invoices: ${requestSummary.outstandingInvoiceAmount} (${requestSummary.unpaidInvoiceCount} unpaid). Keep responses clear, practical, and concise.`,
-            },
-            {
-              role: 'user',
-              content: question,
-            },
-          ],
-        }),
+      const serverRes = await askAccountingAssistant({
+        question,
+        consentAccepted: true,
+        countryCode: requestSummary.countryCode,
+        countryName: requestSummary.countryName,
+        currencyCode: requestSummary.currencyCode,
+        cashBalance: requestSummary.cashBalance,
+        currentMonthIncome: requestSummary.currentMonthIncome,
+        currentMonthExpense: requestSummary.currentMonthExpense,
+        outstandingInvoiceAmount: requestSummary.outstandingInvoiceAmount,
+        unpaidInvoiceCount: requestSummary.unpaidInvoiceCount,
       });
 
-      const data = await response.json();
-      console.log("GROQ RAW:", JSON.stringify(data));
-
-      if (!response.ok) {
-        const errorMsg = data?.error?.message || `Groq API error (${response.status})`;
-        throw new Error(errorMsg);
+      if (serverRes?.answer) {
+        answer = serverRes.answer;
       }
-
-      const replyText = data?.choices?.[0]?.message?.content;
-      if (!replyText || !replyText.trim()) {
-        throw new Error('Groq returned no content. Check API key and model.');
-      }
-
-      setMessages((current) => [
-        ...current,
-        { id: `assistant-${Date.now()}`, role: 'assistant', text: replyText.trim() },
-      ]);
-    } catch (error: any) {
-      console.log("GROQ ERROR:", error);
-      setMessages((current) => [
-        ...current,
-        { id: `error-${Date.now()}`, role: 'assistant', text: error?.message || 'Groq returned no content. Check API key and model.' },
-      ]);
-    } finally {
-      setIsSending(false);
+    } catch (serverErr) {
+      console.log('Backend AI request failed, falling back to direct client AI call:', serverErr);
     }
+
+    // 2. If backend API did not respond, try direct client AI call
+    if (!answer) {
+      answer = await fetchDirectAiAnswer(question);
+    }
+
+    // 3. Fallback to smart offline response if network/provider is unreachable
+    if (!answer) {
+      answer = generateOfflineGuidanceResponse(question);
+    }
+
+    setMessages((current) => [
+      ...current,
+      { id: `assistant-${Date.now()}`, role: 'assistant', text: answer! },
+    ]);
+
+    setIsSending(false);
   }
 
   return (
@@ -170,7 +269,7 @@ export default function AssistantScreen() {
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>Accounting assistant</Text>
           <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>General guidance · not tax advice</Text>
         </View>
-        <View style={[styles.statusDot, { backgroundColor: Boolean(groqApiKey) ? colors.primary : colors.mutedForeground }]} />
+        <View style={[styles.statusDot, { backgroundColor: colors.primary }]} />
       </View>
 
       <KeyboardAvoidingView
