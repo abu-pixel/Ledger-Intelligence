@@ -7,7 +7,7 @@ Ledgerly is a production-ready mobile bookkeeping and cash-flow management appli
 ## Key Features & Security
 
 - **Secure Authentication & Verification**: Mandatory user registration with full name, email address validation, and email verification code confirmation powered by Clerk.
-- **Backend API Key Protection**: Third-party API keys (e.g. OpenAI / Groq secrets) are strictly isolated on the backend server (`artifacts/api-server`) using environment variable secrets (`GROQ_API_KEY`, `OPENAI_API_KEY`). Secrets are **never** bundled or exposed in mobile app source code or client builds.
+- **Free Server-Side AI Integration**: The accounting assistant is proxied through the backend to Pollinations' free, no-key text API. No AI provider credentials are bundled in the mobile app or required at runtime.
 - **Dashboard & Cash Management**: Track available cash balance, monthly income, and monthly expenses at a glance.
 - **Income & Expense Tracking**: Record incoming revenues (sales, retainers, consulting) and outgoing expenses (supplies, payroll, software) with optional receipt photo attachments.
 - **Transaction Search & Filtering**: Search transactions by keyword and filter by money-in vs money-out. Delete mistaken entries with confirmation.
@@ -19,13 +19,14 @@ Ledgerly is a production-ready mobile bookkeeping and cash-flow management appli
 
 ---
 
-## Security & Secrets Management
+## Security & Privacy
 
 To maintain security in open-source and public repositories:
 
-1. **Backend Secret Isolation**: Store LLM API keys on the server environment (`GROQ_API_KEY` or `OPENAI_API_KEY`). The mobile app calls the backend Express API (`/api/ai/accounting-guidance`), which proxies calls securely.
-2. **Git Hygiene**: Environment files (`.env`, `.env.*`, `secrets/`) are listed in `.gitignore` to prevent accidental key exposure.
+1. **Server-Side AI Proxy**: The mobile app calls the backend Express API (`/api/ai/accounting-guidance`), which forwards only consent-approved aggregate data to the free Pollinations text API. No AI provider key is required.
+2. **Git Hygiene**: Environment files (`.env`, `.env.*`, `secrets/`) are listed in `.gitignore` to prevent accidental credential exposure.
 3. **Data Privacy**: No raw client names, itemized descriptions, or receipt photos are sent to AI providers—only high-level numerical cash-flow aggregates when explicitly consented to by the user.
+4. **Free-Tier Limits**: Anonymous Pollinations requests are rate-limited. The API maps provider cooldowns to `429` responses and never exposes provider credentials to the mobile app.
 
 ---
 
@@ -68,13 +69,12 @@ pnpm install
 
 ### Environment Configuration
 
-Configure environment variables on the backend server:
+No AI provider key is required. Optionally override the free provider defaults on the backend server:
 
 ```bash
 # Server Environment (artifacts/api-server)
-GROQ_API_KEY="your-groq-api-key"
-# or
-OPENAI_API_KEY="your-openai-api-key"
+POLLINATIONS_BASE_URL="https://text.pollinations.ai"   # optional
+POLLINATIONS_MODEL="openai-fast"                        # optional
 
 # Client Public Env (artifacts/mobile)
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
@@ -114,9 +114,9 @@ EXPO_PUBLIC_DOMAIN=localhost pnpm --filter @workspace/mobile run build
 
 ## Tech Stack
 
-- **Framework**: React Native, Expo Go (~57.0), Expo Router
+- **Framework**: React Native 0.88, Expo 58, Expo Router
 - **Authentication**: Clerk Expo (`@clerk/expo`)
-- **Language**: TypeScript 5.9
+- **Language**: TypeScript 6.0 (mobile), 5.9 (workspace tooling)
 - **State Management**: React Context with `@react-native-async-storage/async-storage`
 - **Networking**: TanStack Query (`@tanstack/react-query`)
 - **Backend API**: Node.js, Express 5, Orval OpenAPI codegen

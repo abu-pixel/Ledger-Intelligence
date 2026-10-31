@@ -35,10 +35,10 @@ paths:
       operationId: getAiStatus
       tags: [ai]
       summary: Get AI assistant availability
-      description: Reports whether the server has an AI provider configured without exposing credentials.
+      description: Reports whether the free AI provider is currently reachable without exposing provider details.
       responses:
         "200":
-          description: AI provider configuration status
+          description: AI provider availability status
           content:
             application/json:
               schema:
@@ -74,14 +74,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-        "503":
-          description: AI service is not configured
+        "401":
+          description: Authentication required
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-        "401":
-          description: Authentication or AI consent required
+        "403":
+          description: AI consent required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: AI provider returned an invalid response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: AI service is temporarily unavailable
           content:
             application/json:
               schema:

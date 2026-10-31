@@ -18,7 +18,7 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * Reports whether the server has an AI provider configured without exposing credentials.
+ * Reports whether the free AI provider is currently reachable without exposing provider details.
  * @summary Get AI assistant availability
  */
 export const GetAiStatusResponse = zod.object({

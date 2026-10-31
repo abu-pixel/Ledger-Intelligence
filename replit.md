@@ -10,13 +10,13 @@ Ledgerly is a React Native & Expo mobile bookkeeping application for freelancers
 - `pnpm run typecheck` — full typecheck across all workspace packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- Required env (optional for AI assistant): `OPENAI_API_KEY` — OpenAI API key for accounting guidance endpoint
+- AI assistant: uses the free Pollinations text API with no provider key. Optional overrides: `POLLINATIONS_BASE_URL`, `POLLINATIONS_MODEL`. Anonymous requests are rate-limited per IP.
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- Mobile: React Native 0.86, Expo Go 57, Expo Router, React Native Reanimated, Expo Image Picker, Async Storage
-- Backend API: Express 5, TanStack React Query, Orval OpenAPI client generator
+- pnpm workspaces, Node.js 24, TypeScript 6.0 (mobile), 5.9 (workspace tooling)
+- Mobile: React Native 0.88, Expo 58, Expo Router, React Native Reanimated, Expo Image Picker, Async Storage
+- Backend API: Express 5, TanStack React Query, Orval OpenAPI client generator, Pollinations free text API
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - Build: Expo Metro Static Export & esbuild (CJS bundle)
 

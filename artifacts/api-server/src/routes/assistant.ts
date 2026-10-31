@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
 import { rateLimit } from "express-rate-limit";
-import OpenAI from "openai";
 import {
   AskAccountingAssistantResponse,
   AskAccountingAssistantBody,
@@ -10,8 +9,14 @@ import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
-let openAIClient: OpenAI | null = null;
-let activeApiKey: string | null = null;
+
+const POLLINATIONS_BASE_URL = (
+  process.env.POLLINATIONS_BASE_URL?.trim() || "https://text.pollinations.ai"
+).replace(/\/+$/, "");
+const POLLINATIONS_MODEL = process.env.POLLINATIONS_MODEL?.trim() || "openai-fast";
+const PROVIDER_TIMEOUT_MS = 60_000;
+const STATUS_CACHE_MS = 60_000;
+const STATUS_FAILURE_CACHE_MS = 15_000;
 
 const assistantRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -21,14 +26,86 @@ const assistantRateLimit = rateLimit({
   message: { error: "Please wait before sending another assistant question." },
 });
 
-router.get("/ai/status", (req, res) => {
-  const apiKey =
-    process.env.GROQ_API_KEY?.trim() ||
-    process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim() ||
-    (req.headers["x-groq-api-key"] as string | undefined)?.trim() ||
-    process.env.OPENAI_API_KEY?.trim();
+let statusCache: { available: boolean; expiresAt: number } | null = null;
+
+function providerUrl(path: string): string {
+  return `${POLLINATIONS_BASE_URL}${path}`;
+}
+
+function extractAnswer(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const choices = (payload as { choices?: unknown }).choices;
+  if (!Array.isArray(choices) || choices.length === 0) return null;
+  const first = choices[0];
+  if (!first || typeof first !== "object") return null;
+  const message = (first as { message?: unknown }).message;
+  if (!message || typeof message !== "object") return null;
+  const content = (message as { content?: unknown }).content;
+
+  if (typeof content === "string") {
+    const answer = content.trim();
+    return answer || null;
+  }
+
+  if (Array.isArray(content)) {
+    const answer = content
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (part && typeof part === "object") {
+          const text = (part as { text?: unknown }).text;
+          if (typeof text === "string") return text;
+        }
+        return "";
+      })
+      .join("")
+      .trim();
+    return answer || null;
+  }
+
+  return null;
+}
+
+function parseRetryAfter(value: string | null): number | null {
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return Math.min(Math.ceil(seconds), 3600);
+  }
+  const date = Date.parse(value);
+  if (!Number.isNaN(date)) {
+    return Math.min(Math.max(Math.ceil((date - Date.now()) / 1000), 1), 3600);
+  }
+  return null;
+}
+
+async function isProviderAvailable(): Promise<boolean> {
+  if (statusCache && statusCache.expiresAt > Date.now()) {
+    return statusCache.available;
+  }
+
+  try {
+    const response = await fetch(providerUrl("/models"), {
+      signal: AbortSignal.timeout(8_000),
+      headers: { accept: "application/json" },
+    });
+    const available = response.ok;
+    statusCache = {
+      available,
+      expiresAt: Date.now() + (available ? STATUS_CACHE_MS : STATUS_FAILURE_CACHE_MS),
+    };
+    return available;
+  } catch {
+    statusCache = {
+      available: false,
+      expiresAt: Date.now() + STATUS_FAILURE_CACHE_MS,
+    };
+    return false;
+  }
+}
+
+router.get("/ai/status", async (_req, res) => {
   const data = GetAiStatusResponse.parse({
-    available: Boolean(apiKey),
+    available: await isProviderAvailable(),
   });
   res.setHeader("Cache-Control", "no-store");
   res.json(data);
@@ -45,72 +122,89 @@ router.post("/ai/accounting-guidance", requireAuth, assistantRateLimit, async (r
     return;
   }
 
-  const groqKey =
-    process.env.GROQ_API_KEY?.trim() ||
-    process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim() ||
-    (req.headers["x-groq-api-key"] as string | undefined)?.trim();
-  const openaiKey = process.env.OPENAI_API_KEY?.trim();
-  const apiKey = groqKey || openaiKey;
-
-  if (!apiKey) {
-    res.status(503).json({
-      error: "The AI assistant is not configured on the server. Please contact system support.",
-    });
+  const question = request.data.question.trim();
+  if (!question) {
+    res.status(400).json({ error: "Enter a question for the assistant." });
     return;
   }
 
-  const isGroq = Boolean(groqKey) || apiKey.startsWith("gsk_");
-  const baseURL = isGroq
-    ? process.env.GROQ_BASE_URL?.trim() || "https://api.groq.com/openai/v1"
-    : process.env.OPENAI_BASE_URL?.trim() || undefined;
-  const defaultModel = isGroq ? "llama-3.3-70b-versatile" : "gpt-4o-mini";
-  const model = (isGroq ? process.env.GROQ_MODEL?.trim() : process.env.OPENAI_MODEL?.trim()) || defaultModel;
+  const systemInstruction =
+    "You are Ledgerly's general accounting assistant for small and growing businesses. " +
+    "Answer the user's question clearly and concisely, using the provided country, currency, " +
+    "and aggregate business totals when useful. Do not claim to file taxes, verify compliance, " +
+    "or provide legal, tax, audit, investment, or payroll advice. Tax and filing rules vary by " +
+    "jurisdiction and business circumstances: state uncertainty and direct the user to the " +
+    "relevant official authority or a qualified local professional for decisions. Do not invent " +
+    "rates or deadlines. Offer practical bookkeeping guidance and explain calculations. Keep " +
+    "the answer under 200 words.";
 
-  const clientKey = `${apiKey}:${baseURL || "default"}`;
-  if (!openAIClient || activeApiKey !== clientKey) {
-    openAIClient = new OpenAI({
-      apiKey,
-      baseURL,
-      timeout: 45_000,
-      maxRetries: 0,
-    });
-    activeApiKey = clientKey;
-  }
+  const inputData = JSON.stringify({
+    question,
+    country: `${request.data.countryName} (${request.data.countryCode})`,
+    currency: request.data.currencyCode,
+    aggregateLedgerSummary: {
+      currentCashBalance: request.data.cashBalance,
+      currentMonthIncome: request.data.currentMonthIncome,
+      currentMonthExpenses: request.data.currentMonthExpense,
+      outstandingInvoiceTotal: request.data.outstandingInvoiceAmount,
+      unpaidInvoiceCount: request.data.unpaidInvoiceCount,
+    },
+  });
 
   try {
-    const systemInstruction =
-      "You are Ledgerly's general accounting assistant for small and growing businesses. " +
-      "Answer the user's question clearly and concisely, using the provided country, currency, " +
-      "and aggregate business totals when useful. Do not claim to file taxes, verify compliance, " +
-      "or provide legal, tax, audit, investment, or payroll advice. Tax and filing rules vary by " +
-      "jurisdiction and business circumstances: state uncertainty and direct the user to the " +
-      "relevant official authority or a qualified local professional for decisions. Do not invent " +
-      "rates or deadlines. Offer practical bookkeeping guidance and explain calculations. Keep " +
-      "the answer under 200 words.";
-
-    const inputData = JSON.stringify({
-      question: request.data.question.trim(),
-      country: `${request.data.countryName} (${request.data.countryCode})`,
-      currency: request.data.currencyCode,
-      aggregateLedgerSummary: {
-        currentCashBalance: request.data.cashBalance,
-        currentMonthIncome: request.data.currentMonthIncome,
-        currentMonthExpenses: request.data.currentMonthExpense,
-        outstandingInvoiceTotal: request.data.outstandingInvoiceAmount,
-        unpaidInvoiceCount: request.data.unpaidInvoiceCount,
+    const response = await fetch(providerUrl("/openai"), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
       },
+      body: JSON.stringify({
+        model: POLLINATIONS_MODEL,
+        messages: [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: inputData },
+        ],
+        max_tokens: 600,
+        temperature: 0.3,
+        stream: false,
+      }),
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     });
 
-    const response = await openAIClient.chat.completions.create({
-      model,
-      max_tokens: 600,
-      messages: [
-        { role: "system", content: systemInstruction },
-        { role: "user", content: inputData },
-      ],
-    });
+    if (!response.ok) {
+      const retryAfterSeconds = parseRetryAfter(response.headers.get("retry-after"));
 
-    const answer = response.choices[0]?.message?.content?.trim();
+      if (response.status === 402 || response.status === 429) {
+        if (retryAfterSeconds) {
+          res.setHeader("Retry-After", String(retryAfterSeconds));
+        }
+        logger.warn(
+          { providerStatus: response.status, retryAfterSeconds },
+          "Free AI provider rate limit reached",
+        );
+        res.status(429).json({
+          error: retryAfterSeconds
+            ? `The free AI service allows one request at a time. Try again in ${retryAfterSeconds} seconds.`
+            : "The free AI service is receiving too many requests. Please try again shortly.",
+        });
+        return;
+      }
+
+      logger.warn(
+        { providerStatus: response.status, retryAfterSeconds },
+        "Free AI provider request failed",
+      );
+      res.status(response.status >= 500 ? 503 : 502).json({
+        error:
+          response.status >= 500
+            ? "The free AI service is temporarily unavailable. Please try again shortly."
+            : "The AI assistant could not respond. Please try again shortly.",
+      });
+      return;
+    }
+
+    const payload: unknown = await response.json();
+    const answer = extractAnswer(payload);
     if (!answer) {
       res.status(502).json({ error: "The AI assistant returned an empty response. Please try again." });
       return;
@@ -118,16 +212,12 @@ router.post("/ai/accounting-guidance", requireAuth, assistantRateLimit, async (r
 
     res.json(AskAccountingAssistantResponse.parse({ answer: answer.slice(0, 5000) }));
   } catch (error) {
-    const status =
-      error instanceof OpenAI.APIError && Number.isInteger(error.status)
-        ? error.status
-        : undefined;
-    logger.warn({ providerStatus: status }, "AI accounting guidance request failed");
-    res.status(status === 429 ? 503 : 502).json({
-      error:
-        status === 429
-          ? "The AI provider is busy or its usage limit was reached. Please try again later."
-          : "The AI assistant could not respond. Please try again shortly.",
+    const timedOut =
+      error instanceof Error &&
+      (error.name === "TimeoutError" || error.name === "AbortError");
+    logger.warn({ timedOut }, "Free AI provider request failed");
+    res.status(503).json({
+      error: "The free AI service is temporarily unavailable. Please try again shortly.",
     });
   }
 });

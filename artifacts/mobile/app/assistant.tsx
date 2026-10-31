@@ -37,17 +37,8 @@ function describeRequestError(error: unknown) {
 export default function AssistantScreen() {
   const colors = useColors();
   const { state, setAiConsentAccepted } = useFinance();
-  const groqApiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY?.trim();
-  const statusQuery = useGetAiStatus({
-    request: {
-      headers: groqApiKey ? { 'x-groq-api-key': groqApiKey } : undefined,
-    },
-  });
-  const assistantMutation = useAskAccountingAssistant({
-    request: {
-      headers: groqApiKey ? { 'x-groq-api-key': groqApiKey } : undefined,
-    },
-  });
+  const statusQuery = useGetAiStatus();
+  const assistantMutation = useAskAccountingAssistant();
   const [draft, setDraft] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -87,7 +78,7 @@ export default function AssistantScreen() {
   }, [state]);
 
   const orderedMessages = useMemo(() => [...messages].reverse(), [messages]);
-  const assistantAvailable = statusQuery.data?.available === true || Boolean(groqApiKey);
+  const assistantAvailable = statusQuery.data?.available === true;
   const isSending = assistantMutation.isPending;
 
   const quickPrompts = [
@@ -190,7 +181,7 @@ export default function AssistantScreen() {
                 <ActivityIndicator size="small" color={colors.primary} />
                 <Text style={[styles.pendingText, { color: colors.mutedForeground }]}>Preparing a response…</Text>
               </View>
-            ) : null
+            ) : undefined
           }
         />
 

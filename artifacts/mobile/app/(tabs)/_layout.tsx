@@ -97,7 +97,7 @@ function ClassicTabLayout() {
             isIOS ? (
               <SymbolView name="house" tintColor={color} size={24} />
             ) : (
-              <Feather name="home" size={22} color={color} />
+              <Feather name="home" size={22} color={color == null || typeof color === 'number' ? undefined : color} />
             ),
         }}
       />
@@ -109,7 +109,7 @@ function ClassicTabLayout() {
             isIOS ? (
               <SymbolView name="arrow.left.arrow.right" tintColor={color} size={22} />
             ) : (
-              <Feather name="activity" size={21} color={color} />
+              <Feather name="activity" size={21} color={color == null || typeof color === 'number' ? undefined : color} />
             ),
         }}
       />
@@ -121,7 +121,7 @@ function ClassicTabLayout() {
             isIOS ? (
               <SymbolView name="doc.text" tintColor={color} size={22} />
             ) : (
-              <Feather name="file-text" size={21} color={color} />
+              <Feather name="file-text" size={21} color={color == null || typeof color === 'number' ? undefined : color} />
             ),
         }}
       />
@@ -133,7 +133,7 @@ function ClassicTabLayout() {
             isIOS ? (
               <SymbolView name="chart.bar" tintColor={color} size={22} />
             ) : (
-              <Feather name="bar-chart-2" size={21} color={color} />
+              <Feather name="bar-chart-2" size={21} color={color == null || typeof color === 'number' ? undefined : color} />
             ),
         }}
       />
@@ -145,7 +145,7 @@ function ClassicTabLayout() {
             isIOS ? (
               <SymbolView name="function" tintColor={color} size={22} />
             ) : (
-              <Feather name="percent" size={21} color={color} />
+              <Feather name="percent" size={21} color={color == null || typeof color === 'number' ? undefined : color} />
             ),
         }}
       />
@@ -157,7 +157,7 @@ function ClassicTabLayout() {
             isIOS ? (
               <SymbolView name="sparkles" tintColor={color} size={22} />
             ) : (
-              <Feather name="zap" size={21} color={color} />
+              <Feather name="zap" size={21} color={color == null || typeof color === 'number' ? undefined : color} />
             ),
         }}
       />
