@@ -4,6 +4,7 @@ import { ClerkLoaded, ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FinanceProvider } from "@/contexts/FinanceContext";
+import { ClerkSessionProvider, LocalSessionProvider } from "@/contexts/SessionContext";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts } from "@expo-google-fonts/inter";
@@ -23,10 +24,18 @@ const queryClient = new QueryClient({
   },
 });
 
-const apiDomain = process.env.EXPO_PUBLIC_DOMAIN;
+const apiDomain = process.env.EXPO_PUBLIC_DOMAIN?.trim();
 setAuthTokenGetter(null);
 if (apiDomain) {
-  setBaseUrl(`https://${apiDomain}`);
+  setBaseUrl(/^https?:\/\//i.test(apiDomain) ? apiDomain : `https://${apiDomain}`);
+}
+
+const LOCAL_USER_ID = "local-dev-user";
+const localGetToken = async () => null;
+
+function isEnabled(value: string | undefined): boolean {
+  const normalized = value?.trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
 }
 
 function RootNavigator() {
@@ -43,8 +52,13 @@ function RootNavigator() {
   );
 }
 
-function AuthenticatedApp() {
-  const { isSignedIn, userId, getToken } = useAuth();
+type AuthenticatedAppProps = {
+  isSignedIn: boolean;
+  userId: string | null;
+  getToken: () => Promise<string | null>;
+};
+
+function AuthenticatedApp({ isSignedIn, userId, getToken }: AuthenticatedAppProps) {
   const segments = useSegments();
   const isAuthRoute = segments[0] === "(auth)";
 
@@ -72,6 +86,38 @@ function AuthenticatedApp() {
   );
 }
 
+function ClerkAuthenticatedApp() {
+  const { isSignedIn, userId, getToken } = useAuth();
+
+  return (
+    <ClerkSessionProvider>
+      <AuthenticatedApp
+        isSignedIn={Boolean(isSignedIn)}
+        userId={userId ?? null}
+        getToken={getToken}
+      />
+    </ClerkSessionProvider>
+  );
+}
+
+function LocalAuthenticatedApp() {
+  return (
+    <LocalSessionProvider>
+      <AuthenticatedApp isSignedIn userId={LOCAL_USER_ID} getToken={localGetToken} />
+    </LocalSessionProvider>
+  );
+}
+
+function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <KeyboardProvider>
+        <SafeAreaProvider>{children}</SafeAreaProvider>
+      </KeyboardProvider>
+    </GestureHandlerRootView>
+  );
+}
+
 function MissingAuthConfiguration() {
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 28, backgroundColor: "#F5F6F1" }}>
@@ -92,31 +138,40 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
   });
-  const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim();
 
   useEffect(() => {
     if (fontsLoaded || fontError) void SplashScreen.hideAsync();
   }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) return null;
+
+  const hasPlaceholderKey = !publishableKey || /^your[_-]?key/i.test(publishableKey);
+  const bypassClerk =
+    isEnabled(process.env.EXPO_PUBLIC_CLERK_DEV_BYPASS) || (__DEV__ && hasPlaceholderKey);
+
+  if (bypassClerk) {
+    return (
+      <AppShell>
+        <LocalAuthenticatedApp />
+      </AppShell>
+    );
+  }
+
   if (!publishableKey) return <MissingAuthConfiguration />;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <KeyboardProvider>
-        <SafeAreaProvider>
-          {/* REMINDER: Go to the Clerk Dashboard and enable 'Native API' under the 'Native applications' tab. */}
-          <ClerkProvider
-            publishableKey={publishableKey}
-            tokenCache={tokenCache}
-            proxyUrl={process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined}
-          >
-            <ClerkLoaded>
-              <AuthenticatedApp />
-            </ClerkLoaded>
-          </ClerkProvider>
-        </SafeAreaProvider>
-      </KeyboardProvider>
-    </GestureHandlerRootView>
+    <AppShell>
+      {/* REMINDER: Go to the Clerk Dashboard and enable 'Native API' under the 'Native applications' tab. */}
+      <ClerkProvider
+        publishableKey={publishableKey}
+        tokenCache={tokenCache}
+        proxyUrl={process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined}
+      >
+        <ClerkLoaded>
+          <ClerkAuthenticatedApp />
+        </ClerkLoaded>
+      </ClerkProvider>
+    </AppShell>
   );
 }

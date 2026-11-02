@@ -14,10 +14,10 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useClerk, useUser } from '@clerk/expo';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppPage, BrandHeader, PageHeading, SectionTitle, Surface } from '@/components/FinanceUI';
 import { useFinance } from '@/contexts/FinanceContext';
+import { useAppSession } from '@/contexts/SessionContext';
 import { themePalettes, type ThemeId } from '@/constants/colors';
 import { useColors } from '@/hooks/useColors';
 import {
@@ -110,8 +110,7 @@ export default function SettingsScreen() {
     importLegacyWorkspace,
     dismissLegacyImport,
   } = useFinance();
-  const { signOut } = useClerk();
-  const { user } = useUser();
+  const { signOut, user } = useAppSession();
   const [countryPickerOpen, setCountryPickerOpen] = useState(false);
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
