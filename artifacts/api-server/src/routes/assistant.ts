@@ -6,7 +6,6 @@ import {
   GetAiStatusResponse,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
-import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
@@ -111,7 +110,7 @@ router.get("/ai/status", async (_req, res) => {
   res.json(data);
 });
 
-router.post("/ai/accounting-guidance", requireAuth, assistantRateLimit, async (req, res) => {
+router.post("/ai/accounting-guidance", assistantRateLimit, async (req, res) => {
   const request = AskAccountingAssistantBody.safeParse(req.body);
   if (!request.success) {
     res.status(400).json({ error: "The question or financial summary is invalid." });
