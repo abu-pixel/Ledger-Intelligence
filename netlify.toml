@@ -1,7 +1,7 @@
 [build]
-  base = "artifacts/mobile"
-  command = "pnpm run build"
-  publish = "static-build"
+  base = "."
+  command = "node artifacts/mobile/scripts/export-web.js"
+  publish = "artifacts/mobile/static-build"
 
 [[redirects]]
   from = "/*"
