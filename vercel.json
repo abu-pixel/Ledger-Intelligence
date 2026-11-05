@@ -1,12 +1,8 @@
 {
-  "$schema": "https://vercel.sh",
-  "services": {
-    "mobile-app": {
-      "root": "artifacts/mobile",
-      "buildCommand": "pnpm --filter @workspace/mobile run build",
-      "outputDirectory": "static-build"
-    }
-  },
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "buildCommand": "pnpm --filter @workspace/mobile run build",
+  "outputDirectory": "artifacts/mobile/static-build",
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -14,9 +10,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": {
-        "service": "mobile-app"
-      }
+      "destination": "/index.html"
     }
   ]
 }
