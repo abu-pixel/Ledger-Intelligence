@@ -1,0 +1,9 @@
+[build]
+  base = "."
+  command = "node artifacts/mobile/scripts/export-web.js"
+  publish = "artifacts/mobile/static-build"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
