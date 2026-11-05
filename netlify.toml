@@ -1,0 +1,6 @@
+# Netlify deploys only the Expo mobile static build. The root `pnpm run build`
+# builds every workspace, including artifacts/mockup-sandbox, whose Vite config
+# requires Replit-only PORT/BASE_PATH env vars and is not part of the shipped app.
+[build]
+  command = "pnpm --filter @workspace/mobile run build"
+  publish = "artifacts/mobile/static-build"
