@@ -4,7 +4,7 @@
     "mobile-frontend": {
       "root": "artifacts/mobile",
       "buildCommand": "pnpm --filter @workspace/mobile run build",
-      "outputDirectory": "dist"
+      "outputDirectory": "static-build"
     }
   },
   "rewrites": [
