@@ -32,10 +32,11 @@ function RootNavigator({ signedIn }: { signedIn: boolean }) {
   return (
     <>
       <Stack screenOptions={{ headerBackTitle: "Back" }}>
-        <Stack.Protected guard={!signedIn}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Protected guard={!signedIn} redirectTo="/(tabs)">
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         </Stack.Protected>
-        <Stack.Protected guard={signedIn}>
+        <Stack.Protected guard={signedIn} redirectTo="/(auth)/sign-in">
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="settings" options={{ headerShown: false }} />
           <Stack.Screen name="assistant" options={{ headerShown: false }} />

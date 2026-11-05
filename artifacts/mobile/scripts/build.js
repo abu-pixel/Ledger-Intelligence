@@ -1,8 +1,19 @@
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const { Readable } = require('stream');
 const { pipeline } = require('stream/promises');
+
+// Netlify serves the browser app, rather than native Expo Go manifests.
+if (process.env.NETLIFY === 'true') {
+  const result = spawnSync(
+    process.execPath,
+    [require.resolve('expo/bin/cli'), 'export', '--platform', 'web', '--output-dir', 'static-build'],
+    { cwd: path.resolve(__dirname, '..'), stdio: 'inherit' },
+  );
+  if (result.error) console.error('Unable to start the Expo web export.');
+  process.exit(result.status ?? 1);
+}
 
 let metroProcess = null;
 
