@@ -61,6 +61,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "@netlify/identity": "^2.0.0",
     "expo-build-properties": "~58.0.11"
   }
 }

@@ -181,7 +181,7 @@ export default function SettingsScreen() {
     if (syncStatus === 'offline') return 'Saved on this device. Cloud sync will retry when you reconnect.';
     if (syncStatus === 'conflict') return 'A newer version exists on another device. Choose which copy to keep.';
     if (syncStatus === 'loading') return 'Checking your account workspace…';
-    return 'Sign in to sync your workspace across devices.';
+    return user ? 'Saved on this device. Cloud sync is not available for this account.' : 'Sign in to sync your workspace across devices.';
   }
 
   function confirmRestoreCloud() {

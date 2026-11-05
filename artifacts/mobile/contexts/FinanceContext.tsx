@@ -293,14 +293,16 @@ function getHttpStatus(error: unknown) {
 export function FinanceProvider({
   children,
   userId,
+  cloudSyncEnabled = true,
 }: {
   children: ReactNode;
   userId: string | null;
+  cloudSyncEnabled?: boolean;
 }) {
   const [state, setState] = useState<FinanceState>(createInitialState);
   const [isReady, setIsReady] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>(userId ? 'loading' : 'local');
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(userId && cloudSyncEnabled ? 'loading' : 'local');
   const [syncError, setSyncError] = useState<string | null>(null);
   const [legacyState, setLegacyState] = useState<FinanceState | null>(null);
   const [retryVersion, setRetryVersion] = useState(0);
@@ -322,7 +324,7 @@ export function FinanceProvider({
     remoteRevisionRef.current = 0;
     remoteReadyRef.current = false;
     lastSyncedHashRef.current = '';
-    setSyncStatus(userId ? 'loading' : 'local');
+    setSyncStatus(userId && cloudSyncEnabled ? 'loading' : 'local');
     setSyncError(null);
 
     async function load() {
@@ -365,7 +367,7 @@ export function FinanceProvider({
     return () => {
       active = false;
     };
-  }, [storageKey, userId]);
+  }, [storageKey, userId, cloudSyncEnabled]);
 
   useEffect(() => {
     stateRef.current = state;
@@ -389,7 +391,7 @@ export function FinanceProvider({
   }, [isReady, state, storageKey]);
 
   useEffect(() => {
-    if (!userId || !isReady) {
+    if (!cloudSyncEnabled || !userId || !isReady) {
       remoteReadyRef.current = false;
       return;
     }
@@ -438,10 +440,10 @@ export function FinanceProvider({
     return () => {
       active = false;
     };
-  }, [isReady, retryVersion, userId]);
+  }, [isReady, retryVersion, userId, cloudSyncEnabled]);
 
   useEffect(() => {
-    if (!isReady || !userId || !remoteReadyRef.current) return;
+    if (!cloudSyncEnabled || !isReady || !userId || !remoteReadyRef.current) return;
     const cloudState = cloudSafeState(state);
     const hash = JSON.stringify(cloudState);
     if (hash === lastSyncedHashRef.current) return;
@@ -480,7 +482,7 @@ export function FinanceProvider({
       active = false;
       clearTimeout(timeout);
     };
-  }, [isReady, state, userId]);
+  }, [isReady, state, userId, cloudSyncEnabled]);
 
   const addTransaction = useCallback((transaction: NewTransaction) => {
     const newTransaction: Transaction = {
@@ -618,6 +620,7 @@ export function FinanceProvider({
   }, [syncStatus]);
 
   const restoreCloudWorkspace = useCallback(async () => {
+    if (!cloudSyncEnabled) throw new Error('Cloud sync is unavailable for this account.');
     if (!userId) throw new Error('Sign in before restoring cloud data.');
     const remote = await getFinanceWorkspace();
     if (!remote.state) throw new Error('There is no saved cloud workspace to restore.');
@@ -631,9 +634,10 @@ export function FinanceProvider({
     setState(restored);
     setSyncStatus('synced');
     setSyncError(null);
-  }, [userId]);
+  }, [userId, cloudSyncEnabled]);
 
   const overwriteCloudWorkspace = useCallback(async () => {
+    if (!cloudSyncEnabled) throw new Error('Cloud sync is unavailable for this account.');
     if (!userId) throw new Error('Sign in before syncing cloud data.');
     const remote = await getFinanceWorkspace();
     const cloudState = cloudSafeState(stateRef.current);
@@ -646,7 +650,7 @@ export function FinanceProvider({
     remoteReadyRef.current = true;
     setSyncStatus('synced');
     setSyncError(null);
-  }, [userId]);
+  }, [userId, cloudSyncEnabled]);
 
   const importLegacyWorkspace = useCallback(async () => {
     if (!userId || !storageKey || !legacyState) return;
