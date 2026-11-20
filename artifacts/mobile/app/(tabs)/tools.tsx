@@ -131,7 +131,7 @@ export default function ToolsScreen() {
   }
 
   function removeRule(ruleId: string, name: string) {
-    Alert.alert('Delete this rule?', `“${name}” will be removed from this account.`, [
+    Alert.alert('Delete this rule?', `“${name}” will be removed from your tax rules.`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => deleteTaxRule(ruleId) },
     ]);

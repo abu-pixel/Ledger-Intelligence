@@ -4,9 +4,9 @@ Ledgerly is a production-ready mobile bookkeeping and cash-flow management appli
 
 ---
 
-## Key Features & Security
+## Key Features & Privacy
 
-- **Secure Authentication & Verification**: Mandatory user registration with full name, email address validation, and email verification code confirmation powered by Clerk.
+- **No Account Required**: The app opens straight into a private, local-first workspace with no sign-up, sign-in, or account linkage.
 - **Free Server-Side AI Integration**: The accounting assistant is proxied through the backend to Pollinations' free, no-key text API. No AI provider credentials are bundled in the mobile app or required at runtime.
 - **Dashboard & Cash Management**: Track available cash balance, monthly income, and monthly expenses at a glance.
 - **Income & Expense Tracking**: Record incoming revenues (sales, retainers, consulting) and outgoing expenses (supplies, payroll, software) with optional receipt photo attachments.
@@ -24,9 +24,10 @@ Ledgerly is a production-ready mobile bookkeeping and cash-flow management appli
 To maintain security in open-source and public repositories:
 
 1. **Server-Side AI Proxy**: The mobile app calls the backend Express API (`/api/ai/accounting-guidance`), which forwards only consent-approved aggregate data to the free Pollinations text API. No AI provider key is required.
-2. **Git Hygiene**: Environment files (`.env`, `.env.*`, `secrets/`) are listed in `.gitignore` to prevent accidental credential exposure.
-3. **Data Privacy**: No raw client names, itemized descriptions, or receipt photos are sent to AI providers—only high-level numerical cash-flow aggregates when explicitly consented to by the user.
-4. **Free-Tier Limits**: Anonymous Pollinations requests are rate-limited. The API maps provider cooldowns to `429` responses and never exposes provider credentials to the mobile app.
+2. **Local-First Data**: Ledger data stays on the device in AsyncStorage; there is no account, cloud workspace, or server-side ledger store.
+3. **Git Hygiene**: Environment files (`.env`, `.env.*`, `secrets/`) are listed in `.gitignore` to prevent accidental credential exposure.
+4. **Data Privacy**: No raw client names, itemized descriptions, or receipt photos are sent to AI providers—only high-level numerical cash-flow aggregates when explicitly consented to by the user.
+5. **Free-Tier Limits**: Anonymous Pollinations requests are rate-limited. The API maps provider cooldowns to `429` responses and never exposes provider credentials to the mobile app.
 
 ---
 
@@ -37,17 +38,16 @@ The project is structured as a `pnpm` monorepo containing:
 ```
 ├── artifacts/
 │   ├── mobile/             # React Native / Expo Go mobile app
-│   │   ├── app/            # Expo Router screens ((auth), (tabs), activity, invoices, reports, insights, assistant, settings)
-│   │   ├── components/     # UI components (AuthField, AuthShell, FinanceUI, Composers, ErrorBoundary)
-│   │   ├── contexts/       # FinanceContext (State & Async Persistence)
+│   │   ├── app/            # Expo Router screens ((tabs), activity, invoices, reports, insights, assistant, settings)
+│   │   ├── components/     # UI components (FinanceUI, Composers, ErrorBoundary)
+│   │   ├── contexts/       # FinanceContext (local state & AsyncStorage persistence)
 │   │   └── lib/            # Localization & Currency utilities
-│   ├── api-server/         # Node.js / Express backend server for AI assistant & sync status endpoints
+│   ├── api-server/         # Node.js / Express backend server for AI assistant and currency-rate endpoints
 │   └── mockup-sandbox/    # UI mockup web preview sandbox
 ├── lib/
 │   ├── api-client-react/   # React Query API client hooks generated from OpenAPI spec
 │   ├── api-spec/           # OpenAPI specification & Orval codegen
-│   ├── api-zod/            # Zod validation schemas
-│   └── db/                 # PostgreSQL / Drizzle ORM database schemas
+│   └── api-zod/            # Zod validation schemas
 └── replit.md               # Environment configuration & deployment guide
 ```
 
@@ -77,7 +77,6 @@ POLLINATIONS_BASE_URL="https://text.pollinations.ai"   # optional
 POLLINATIONS_MODEL="openai-fast"                        # optional
 
 # Client Public Env (artifacts/mobile)
-EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
 EXPO_PUBLIC_DOMAIN="your-api-domain.com"
 ```
 
@@ -115,7 +114,7 @@ EXPO_PUBLIC_DOMAIN=localhost pnpm --filter @workspace/mobile run build
 ## Tech Stack
 
 - **Framework**: React Native 0.88, Expo 58, Expo Router
-- **Authentication**: Clerk Expo (`@clerk/expo`)
+- **Authentication**: None—local-first workspace with no account required
 - **Language**: TypeScript 6.0 (mobile), 5.9 (workspace tooling)
 - **State Management**: React Context with `@react-native-async-storage/async-storage`
 - **Networking**: TanStack Query (`@tanstack/react-query`)

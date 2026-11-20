@@ -56,7 +56,7 @@ export function BrandHeader({
 }) {
   const colors = useColors();
   const { state } = useFinance();
-  const displayEyebrow = (eyebrow ?? state.businessName ?? '').toUpperCase() || 'MY BUSINESS';
+  const displayEyebrow = (eyebrow ?? '').toUpperCase() || 'MY BUSINESS';
   const headerAction = trailing ?? (
     <Pressable
       onPress={() => router.push('/settings')}

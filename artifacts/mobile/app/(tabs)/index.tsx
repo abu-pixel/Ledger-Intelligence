@@ -53,8 +53,6 @@ export default function HomeScreen() {
 
   const outstanding = totals.unpaidInvoices.reduce((sum, item) => sum + item.amount, 0);
 
-  const greetingName = state.userName ? state.userName.split(' ')[0] : 'there';
-
   return (
     <AppPage>
       <BrandHeader
@@ -75,8 +73,7 @@ export default function HomeScreen() {
 
       <View style={styles.greeting}>
         <Text style={[styles.greetingLabel, { color: colors.mutedForeground }]}>{today}</Text>
-        <Text style={[styles.title, { color: colors.foreground }]}>Welcome back,</Text>
-        <Text style={[styles.title, { color: colors.foreground }]}>{greetingName}.</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>Welcome back.</Text>
       </View>
 
         <Surface style={[styles.balanceCard, { backgroundColor: colors.primary, borderColor: colors.primary }]}>

@@ -11,4 +11,4 @@ AI use requires explicit user consent. Send only the user's question, country/cu
 
 **Why:** the user requested Ethiopia-first coverage at African and international scale; broad tax rules are not verified uniformly, and ledger/AI data can be financially sensitive.
 
-**How to apply:** preserve these boundaries when adding local tax and invoice rules, currency conversion, cloud sync, or richer AI and document-scanning features.
+**How to apply:** preserve these boundaries when adding local tax and invoice rules, currency conversion, local persistence, or richer AI and document-scanning features.

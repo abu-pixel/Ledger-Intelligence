@@ -144,14 +144,9 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
 
   console.log('Starting Metro...');
   console.log(`Setting EXPO_PUBLIC_DOMAIN=${expoPublicDomain}`);
-  const clerkProxyUrl = process.env.CLERK_PROXY_URL
-    ? `https://${expoPublicDomain}${process.env.CLERK_PROXY_URL}`
-    : '';
   const env = {
     ...process.env,
     EXPO_PUBLIC_DOMAIN: expoPublicDomain,
-    EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY || '',
-    EXPO_PUBLIC_CLERK_PROXY_URL: clerkProxyUrl,
     EXPO_PUBLIC_REPL_ID: expoPublicReplId,
   };
 
@@ -167,6 +162,7 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
       detached: false,
       cwd: projectRoot,
       env,
+      shell: process.platform === 'win32',
     },
   );
 
@@ -183,7 +179,7 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
     });
   }
 
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 180; i++) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     const healthy = await checkMetroHealth();
@@ -194,6 +190,7 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
   }
 
   console.error('Metro timeout');
+  if (metroProcess) metroProcess.kill();
   process.exit(1);
 }
 

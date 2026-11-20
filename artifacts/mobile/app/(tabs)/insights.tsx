@@ -42,7 +42,7 @@ export default function InsightsScreen() {
   function confirmReset() {
     Alert.alert(
       'Reset workspace?',
-      'This clears all transactions, invoices, and profile settings on this device and returns to onboarding.',
+      'This clears all transactions and invoices on this device and restores the sample workspace.',
       [
         { text: 'Keep my data', style: 'cancel' },
         { text: 'Reset workspace', style: 'destructive', onPress: resetSampleWorkspace },

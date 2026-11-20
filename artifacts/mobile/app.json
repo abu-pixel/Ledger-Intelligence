@@ -21,7 +21,6 @@
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
-      "@clerk/expo",
       "expo-router",
       [
         "expo-splash-screen",
@@ -49,8 +48,7 @@
             "deploymentTarget": "16.4"
           }
         }
-      ],
-      "expo-secure-store"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

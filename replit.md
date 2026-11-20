@@ -17,8 +17,8 @@ Ledgerly is a React Native & Expo mobile bookkeeping application for freelancers
 - pnpm workspaces, Node.js 24, TypeScript 6.0 (mobile), 5.9 (workspace tooling)
 - Mobile: React Native 0.88, Expo 58, Expo Router, React Native Reanimated, Expo Image Picker, Async Storage
 - Backend API: Express 5, TanStack React Query, Orval OpenAPI client generator, Pollinations free text API
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- Build: Expo Metro Static Export & esbuild (CJS bundle)
+- Validation: Zod
+- Build: Expo Metro Static Export & esbuild (ESM bundle)
 
 ## Where things live
 
@@ -31,6 +31,7 @@ Ledgerly is a React Native & Expo mobile bookkeeping application for freelancers
 
 ## Architecture decisions
 
+- **No Authentication**: The app opens directly into a local workspace; there are no sign-in, sign-up, account, or cloud-sync flows.
 - **Local-first Persistence**: Ledger transactions and invoice state are stored locally via `AsyncStorage`, enabling fully offline usage with zero latency.
 - **Aggregated AI Context**: The AI Assistant receives only safe financial aggregates (country, currency, total cash, monthly income/expense totals) to preserve privacy and prevent sharing raw transaction or receipt data.
 - **Flexible Country & Currency Setup**: Users can set their country, books currency, and VAT reference percentage independently without forced conversions.
