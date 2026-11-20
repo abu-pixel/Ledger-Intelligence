@@ -17,7 +17,6 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppPage, BrandHeader, PageHeading, SectionTitle, Surface } from '@/components/FinanceUI';
 import { useFinance } from '@/contexts/FinanceContext';
-import { useAppSession } from '@/contexts/SessionContext';
 import { themePalettes, type ThemeId } from '@/constants/colors';
 import { useColors } from '@/hooks/useColors';
 import {
@@ -101,16 +100,7 @@ export default function SettingsScreen() {
     updateTheme,
     updateVatRate,
     setAiConsentAccepted,
-    syncStatus,
-    syncError,
-    retrySync,
-    restoreCloudWorkspace,
-    overwriteCloudWorkspace,
-    legacyImportAvailable,
-    importLegacyWorkspace,
-    dismissLegacyImport,
   } = useFinance();
-  const { signOut, user } = useAppSession();
   const [countryPickerOpen, setCountryPickerOpen] = useState(false);
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
@@ -175,48 +165,6 @@ export default function SettingsScreen() {
     });
   }
 
-  function explainSyncStatus() {
-    if (syncStatus === 'syncing') return 'Syncing your private workspace…';
-    if (syncStatus === 'synced') return 'Saved on this device and synced to your account.';
-    if (syncStatus === 'offline') return 'Saved on this device. Cloud sync will retry when you reconnect.';
-    if (syncStatus === 'conflict') return 'A newer version exists on another device. Choose which copy to keep.';
-    if (syncStatus === 'loading') return 'Checking your account workspace…';
-    return user ? 'Saved on this device. Cloud sync is not available for this account.' : 'Sign in to sync your workspace across devices.';
-  }
-
-  function confirmRestoreCloud() {
-    Alert.alert(
-      'Use the cloud copy?',
-      'This replaces the ledger on this device with the latest cloud version. Your local changes that are not in the cloud will be lost.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Restore cloud copy',
-          onPress: () => void restoreCloudWorkspace().catch(() =>
-            Alert.alert('Could not restore', 'The cloud copy could not be loaded. Your local data is unchanged.'),
-          ),
-        },
-      ],
-    );
-  }
-
-  function confirmKeepThisDevice() {
-    Alert.alert(
-      'Keep this device’s copy?',
-      'This replaces the cloud workspace with the version on this device, including its transactions and settings.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Use this device',
-          style: 'destructive',
-          onPress: () => void overwriteCloudWorkspace().catch(() =>
-            Alert.alert('Could not sync', 'The cloud copy changed again. Your local data is still safe on this device.'),
-          ),
-        },
-      ],
-    );
-  }
-
   return (
     <AppPage>
       <BrandHeader
@@ -233,106 +181,6 @@ export default function SettingsScreen() {
         }
       />
       <PageHeading title="Settings" subtitle="Choose the country, books currency, and look for this device." />
-
-      <View style={styles.section}>
-        <SectionTitle title="Account & sync" />
-        <Surface style={styles.preferenceCard}>
-          <Text style={[styles.selectorTitle, { color: colors.foreground }]}>Private account</Text>
-          <Text style={[styles.helperText, { color: colors.mutedForeground }]}>
-            {user?.primaryEmailAddress?.emailAddress ?? 'Signed-in account'}
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
-            <Feather
-              name={syncStatus === 'synced' ? 'check-circle' : syncStatus === 'offline' || syncStatus === 'conflict' ? 'alert-circle' : 'cloud'}
-              size={16}
-              color={syncStatus === 'synced' ? colors.primary : syncStatus === 'conflict' ? colors.destructive : colors.mutedForeground}
-            />
-            <Text style={[styles.helperText, { color: colors.foreground, flex: 1 }]}>
-              {explainSyncStatus()}
-            </Text>
-          </View>
-          {syncError ? (
-            <Text style={[styles.helperText, { color: colors.destructive }]}>{syncError}</Text>
-          ) : null}
-          {syncStatus === 'offline' ? (
-            <Pressable
-              onPress={retrySync}
-              accessibilityRole="button"
-              style={[styles.assistantButton, { backgroundColor: colors.secondary }]}
-            >
-              <Feather name="refresh-cw" size={15} color={colors.secondaryForeground} />
-              <Text style={[styles.primaryButtonText, { color: colors.secondaryForeground }]}>Retry sync</Text>
-            </Pressable>
-          ) : null}
-          {syncStatus === 'conflict' ? (
-            <View style={{ gap: 9 }}>
-              <Pressable
-                onPress={confirmRestoreCloud}
-                accessibilityRole="button"
-                style={[styles.assistantButton, { backgroundColor: colors.secondary }]}
-              >
-                <Feather name="download-cloud" size={15} color={colors.secondaryForeground} />
-                <Text style={[styles.primaryButtonText, { color: colors.secondaryForeground }]}>Use cloud copy</Text>
-              </Pressable>
-              <Pressable
-                onPress={confirmKeepThisDevice}
-                accessibilityRole="button"
-                style={[styles.assistantButton, { backgroundColor: colors.primary }]}
-              >
-                <Feather name="upload-cloud" size={15} color={colors.primaryForeground} />
-                <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Keep this device’s copy</Text>
-              </Pressable>
-            </View>
-          ) : null}
-          {legacyImportAvailable ? (
-            <View style={{ gap: 7, marginTop: 6 }}>
-              <Text style={[styles.selectorTitle, { color: colors.foreground }]}>Older ledger on this device</Text>
-              <Text style={[styles.helperText, { color: colors.mutedForeground }]}>
-                Import it only if you want this existing device data linked to your signed-in account.
-              </Text>
-              <Pressable
-                onPress={() => Alert.alert(
-                  'Import this ledger?',
-                  'Its transactions and settings will be saved under your account and synced to your other signed-in devices.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Import to account',
-                      onPress: () => void importLegacyWorkspace().catch(() =>
-                        Alert.alert('Could not import', 'The older ledger remains unchanged on this device.'),
-                      ),
-                    },
-                  ],
-                )}
-                accessibilityRole="button"
-                style={[styles.assistantButton, { backgroundColor: colors.primary }]}
-              >
-                <Feather name="download" size={15} color={colors.primaryForeground} />
-                <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Import to account</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => void dismissLegacyImport().catch(() =>
-                  Alert.alert('Could not update', 'The older ledger remains on this device.'),
-                )}
-                accessibilityRole="button"
-                style={styles.notNowButton}
-              >
-                <Text style={[styles.helperText, { color: colors.mutedForeground }]}>Leave it on this device</Text>
-              </Pressable>
-            </View>
-          ) : null}
-          <Pressable
-            onPress={() => void signOut().catch(() =>
-              Alert.alert('Could not sign out', 'Check your connection and try again.'),
-            )}
-            accessibilityRole="button"
-            style={[styles.assistantButton, { backgroundColor: colors.secondary }]}
-          >
-            <Feather name="log-out" size={15} color={colors.secondaryForeground} />
-            <Text style={[styles.primaryButtonText, { color: colors.secondaryForeground }]}>Sign out</Text>
-          </Pressable>
-        </Surface>
-      </View>
 
       <View style={styles.section}>
         <SectionTitle title="Country & currency" />
@@ -692,7 +540,6 @@ const styles = StyleSheet.create({
   consentButton: { borderWidth: 1, minHeight: 54, paddingHorizontal: 11, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 9 },
   consentText: { flex: 1, fontSize: 12, fontWeight: '600', lineHeight: 17 },
   assistantButton: { minHeight: 44, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  notNowButton: { minHeight: 35, alignItems: 'center', justifyContent: 'center' },
   modalPage: { flex: 1 },
   modalContent: { flex: 1, paddingHorizontal: 18, paddingTop: 8 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 16 },

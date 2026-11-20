@@ -10,7 +10,6 @@ import React, {
   type ReactNode,
 } from 'react';
 import type { ThemeId } from '@/constants/colors';
-import { getFinanceWorkspace, saveFinanceWorkspace } from '@workspace/api-client-react';
 
 export type TransactionKind = 'income' | 'expense';
 
@@ -61,15 +60,11 @@ type NewTransaction = Omit<Transaction, 'id' | 'date'> & { date?: string };
 type NewInvoice = Omit<Invoice, 'id' | 'status'>;
 type NewTaxRule = Omit<TaxRule, 'id'>;
 type UpdateCountry = (countryCode: string, suggestedCurrencyCode: string | null) => void;
-export type SyncStatus = 'local' | 'loading' | 'synced' | 'syncing' | 'offline' | 'conflict';
 
 type FinanceContextValue = {
   state: FinanceState;
   isReady: boolean;
   storageError: string | null;
-  syncStatus: SyncStatus;
-  syncError: string | null;
-  legacyImportAvailable: boolean;
   addTransaction: (transaction: NewTransaction) => void;
   addInvoice: (invoice: NewInvoice) => void;
   markInvoicePaid: (invoiceId: string) => void;
@@ -83,17 +78,10 @@ type FinanceContextValue = {
   setOnboardingProfile: (userName: string, businessName: string) => void;
   addTaxRule: (rule: NewTaxRule) => void;
   deleteTaxRule: (ruleId: string) => void;
-  retrySync: () => void;
-  restoreCloudWorkspace: () => Promise<void>;
-  overwriteCloudWorkspace: () => Promise<void>;
-  importLegacyWorkspace: () => Promise<void>;
-  dismissLegacyImport: () => Promise<void>;
   resetSampleWorkspace: () => void;
 };
 
 const STORAGE_KEY = 'ledgerly.finance.v1';
-const ACCOUNT_STORAGE_PREFIX = 'ledgerly.finance.account.v2.';
-const LEGACY_DISMISSED_PREFIX = 'ledgerly.finance.legacy-dismissed.';
 const FinanceContext = createContext<FinanceContextValue | null>(null);
 
 function dateWithOffset(days: number) {
@@ -257,100 +245,24 @@ function parseStoredWorkspace(raw: string) {
   return { state: migrateSavedState(parsed), updatedAt: 0 };
 }
 
-function cloudSafeState(state: FinanceState): FinanceState {
-  return {
-    ...state,
-    transactions: state.transactions.map(({ receiptUri: _receiptUri, ...transaction }) => transaction),
-  };
-}
-
-function withLocalReceipts(remote: FinanceState, local: FinanceState): FinanceState {
-  const receiptsById = new Map(
-    local.transactions
-      .filter((transaction) => transaction.receiptUri)
-      .map((transaction) => [transaction.id, transaction.receiptUri as string]),
-  );
-  return {
-    ...remote,
-    transactions: remote.transactions.map((transaction) => ({
-      ...transaction,
-      ...(receiptsById.has(transaction.id)
-        ? { receiptUri: receiptsById.get(transaction.id) }
-        : {}),
-    })),
-  };
-}
-
-function getHttpStatus(error: unknown) {
-  if (!isRecord(error)) return undefined;
-  if (typeof error.status === 'number') return error.status;
-  if (isRecord(error.response) && typeof error.response.status === 'number') {
-    return error.response.status;
-  }
-  return undefined;
-}
-
-export function FinanceProvider({
-  children,
-  userId,
-  cloudSyncEnabled = true,
-}: {
-  children: ReactNode;
-  userId: string | null;
-  cloudSyncEnabled?: boolean;
-}) {
+export function FinanceProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<FinanceState>(createInitialState);
   const [isReady, setIsReady] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>(userId && cloudSyncEnabled ? 'loading' : 'local');
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const [legacyState, setLegacyState] = useState<FinanceState | null>(null);
-  const [retryVersion, setRetryVersion] = useState(0);
-  const storageKey = userId ? `${ACCOUNT_STORAGE_PREFIX}${userId}` : STORAGE_KEY;
-  const stateRef = useRef(state);
-  const localUpdatedAtRef = useRef(0);
-  const remoteRevisionRef = useRef(0);
-  const remoteReadyRef = useRef(false);
   const suppressPersistRef = useRef(false);
-  const lastSyncedHashRef = useRef('');
 
   useEffect(() => {
     let active = true;
     setIsReady(false);
     setState(createInitialState());
-    setLegacyState(null);
-    stateRef.current = createInitialState();
-    localUpdatedAtRef.current = 0;
-    remoteRevisionRef.current = 0;
-    remoteReadyRef.current = false;
-    lastSyncedHashRef.current = '';
-    setSyncStatus(userId && cloudSyncEnabled ? 'loading' : 'local');
-    setSyncError(null);
 
     async function load() {
       try {
-        if (!storageKey) return;
-        const saved = await AsyncStorage.getItem(storageKey);
-        if (saved) {
+        const saved = await AsyncStorage.getItem(STORAGE_KEY);
+        if (saved && active) {
           const parsed = parseStoredWorkspace(saved);
-          if (active) {
-            stateRef.current = parsed.state;
-            localUpdatedAtRef.current = parsed.updatedAt;
-            suppressPersistRef.current = true;
-            setState(parsed.state);
-          }
-        } else {
-          const [legacy, dismissed] = await Promise.all([
-            AsyncStorage.getItem(STORAGE_KEY),
-            AsyncStorage.getItem(`${LEGACY_DISMISSED_PREFIX}${userId}`),
-          ]);
-          if (legacy && dismissed !== 'true' && active) {
-            try {
-              setLegacyState(parseStoredWorkspace(legacy).state);
-            } catch {
-              setStorageError('An older on-device ledger could not be read safely.');
-            }
-          }
+          suppressPersistRef.current = true;
+          setState(parsed.state);
         }
       } catch {
         if (active) {
@@ -367,122 +279,22 @@ export function FinanceProvider({
     return () => {
       active = false;
     };
-  }, [storageKey, userId, cloudSyncEnabled]);
+  }, []);
 
   useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
-
-  useEffect(() => {
-    if (!isReady || !storageKey) return;
+    if (!isReady) return;
     if (suppressPersistRef.current) {
       suppressPersistRef.current = false;
       return;
     }
-    const updatedAt = Date.now();
-    localUpdatedAtRef.current = updatedAt;
     AsyncStorage.setItem(
-      storageKey,
-      JSON.stringify({ version: 2, updatedAt, state }),
+      STORAGE_KEY,
+      JSON.stringify({ version: 2, updatedAt: Date.now(), state }),
     ).then(
       () => setStorageError(null),
       () => setStorageError('Changes could not be saved on this device.'),
     );
-  }, [isReady, state, storageKey]);
-
-  useEffect(() => {
-    if (!cloudSyncEnabled || !userId || !isReady) {
-      remoteReadyRef.current = false;
-      return;
-    }
-    let active = true;
-    setSyncStatus('loading');
-    setSyncError(null);
-
-    void getFinanceWorkspace()
-      .then((remote) => {
-        if (!active) return;
-        const local = stateRef.current;
-        const remoteTime = remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
-        remoteRevisionRef.current = remote.revision;
-        remoteReadyRef.current = true;
-
-        if (!remote.state) {
-          lastSyncedHashRef.current = '';
-          setSyncStatus('syncing');
-          return;
-        }
-
-        const remoteState = migrateSavedState(remote.state);
-        const localIsNewer =
-          !local.sampleOnly &&
-          (!remoteState.sampleOnly || localUpdatedAtRef.current > remoteTime);
-        if (localIsNewer) {
-          setSyncStatus('syncing');
-          return;
-        }
-
-        const merged = withLocalReceipts(remoteState, local);
-        stateRef.current = merged;
-        localUpdatedAtRef.current = remoteTime;
-        suppressPersistRef.current = true;
-        setState(merged);
-        lastSyncedHashRef.current = JSON.stringify(cloudSafeState(merged));
-        setSyncStatus('synced');
-      })
-      .catch(() => {
-        if (!active) return;
-        remoteReadyRef.current = false;
-        setSyncStatus('offline');
-        setSyncError('Your workspace is safe on this device, but cloud sync is unavailable.');
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [isReady, retryVersion, userId, cloudSyncEnabled]);
-
-  useEffect(() => {
-    if (!cloudSyncEnabled || !isReady || !userId || !remoteReadyRef.current) return;
-    const cloudState = cloudSafeState(state);
-    const hash = JSON.stringify(cloudState);
-    if (hash === lastSyncedHashRef.current) return;
-
-    let active = true;
-    const timeout = setTimeout(() => {
-      setSyncStatus('syncing');
-      setSyncError(null);
-      void saveFinanceWorkspace({
-        state: cloudState,
-        expectedRevision: remoteRevisionRef.current,
-      })
-        .then((saved) => {
-          if (!active) return;
-          remoteRevisionRef.current = saved.revision;
-          lastSyncedHashRef.current = hash;
-          setSyncStatus(
-            JSON.stringify(cloudSafeState(stateRef.current)) === hash
-              ? 'synced'
-              : 'syncing',
-          );
-        })
-        .catch((error: unknown) => {
-          if (!active) return;
-          if (getHttpStatus(error) === 409) {
-            setSyncStatus('conflict');
-            setSyncError('Another device has a newer version. Choose which version to keep in Settings.');
-          } else {
-            setSyncStatus('offline');
-            setSyncError('Your latest changes are saved on this device and will sync after a retry.');
-          }
-        });
-    }, 700);
-
-    return () => {
-      active = false;
-      clearTimeout(timeout);
-    };
-  }, [isReady, state, userId, cloudSyncEnabled]);
+  }, [isReady, state]);
 
   const addTransaction = useCallback((transaction: NewTransaction) => {
     const newTransaction: Transaction = {
@@ -613,65 +425,6 @@ export function FinanceProvider({
     }));
   }, []);
 
-  const retrySync = useCallback(() => {
-    if (syncStatus === 'conflict') return;
-    remoteReadyRef.current = false;
-    setRetryVersion((current) => current + 1);
-  }, [syncStatus]);
-
-  const restoreCloudWorkspace = useCallback(async () => {
-    if (!cloudSyncEnabled) throw new Error('Cloud sync is unavailable for this account.');
-    if (!userId) throw new Error('Sign in before restoring cloud data.');
-    const remote = await getFinanceWorkspace();
-    if (!remote.state) throw new Error('There is no saved cloud workspace to restore.');
-    const restored = migrateSavedState(remote.state);
-    remoteRevisionRef.current = remote.revision;
-    remoteReadyRef.current = true;
-    stateRef.current = restored;
-    localUpdatedAtRef.current = remote.updatedAt ? Date.parse(remote.updatedAt) : Date.now();
-    lastSyncedHashRef.current = JSON.stringify(cloudSafeState(restored));
-    suppressPersistRef.current = true;
-    setState(restored);
-    setSyncStatus('synced');
-    setSyncError(null);
-  }, [userId, cloudSyncEnabled]);
-
-  const overwriteCloudWorkspace = useCallback(async () => {
-    if (!cloudSyncEnabled) throw new Error('Cloud sync is unavailable for this account.');
-    if (!userId) throw new Error('Sign in before syncing cloud data.');
-    const remote = await getFinanceWorkspace();
-    const cloudState = cloudSafeState(stateRef.current);
-    const saved = await saveFinanceWorkspace({
-      state: cloudState,
-      expectedRevision: remote.revision,
-    });
-    remoteRevisionRef.current = saved.revision;
-    lastSyncedHashRef.current = JSON.stringify(cloudState);
-    remoteReadyRef.current = true;
-    setSyncStatus('synced');
-    setSyncError(null);
-  }, [userId, cloudSyncEnabled]);
-
-  const importLegacyWorkspace = useCallback(async () => {
-    if (!userId || !storageKey || !legacyState) return;
-    const updatedAt = Date.now();
-    await AsyncStorage.setItem(
-      storageKey,
-      JSON.stringify({ version: 2, updatedAt, state: legacyState }),
-    );
-    localUpdatedAtRef.current = updatedAt;
-    stateRef.current = legacyState;
-    setState(legacyState);
-    setLegacyState(null);
-    setStorageError(null);
-  }, [legacyState, storageKey, userId]);
-
-  const dismissLegacyImport = useCallback(async () => {
-    if (!userId) return;
-    await AsyncStorage.setItem(`${LEGACY_DISMISSED_PREFIX}${userId}`, 'true');
-    setLegacyState(null);
-  }, [userId]);
-
   const resetSampleWorkspace = useCallback(() => {
     setState((current) => ({
       ...createInitialState(),
@@ -692,9 +445,6 @@ export function FinanceProvider({
       state,
       isReady,
       storageError,
-      syncStatus,
-      syncError,
-      legacyImportAvailable: Boolean(legacyState),
       addTransaction,
       addInvoice,
       markInvoicePaid,
@@ -708,20 +458,12 @@ export function FinanceProvider({
       setOnboardingProfile,
       addTaxRule,
       deleteTaxRule,
-      retrySync,
-      restoreCloudWorkspace,
-      overwriteCloudWorkspace,
-      importLegacyWorkspace,
-      dismissLegacyImport,
       resetSampleWorkspace,
     }),
     [
       state,
       isReady,
       storageError,
-      syncStatus,
-      syncError,
-      legacyState,
       addTransaction,
       addInvoice,
       markInvoicePaid,
@@ -735,11 +477,6 @@ export function FinanceProvider({
       setOnboardingProfile,
       addTaxRule,
       deleteTaxRule,
-      retrySync,
-      restoreCloudWorkspace,
-      overwriteCloudWorkspace,
-      importLegacyWorkspace,
-      dismissLegacyImport,
       resetSampleWorkspace,
     ],
   );
