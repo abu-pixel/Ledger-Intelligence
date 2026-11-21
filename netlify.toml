@@ -83,6 +83,54 @@
   force = true
 
 [[redirects]]
+  from = "/signin"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/signin/*"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/signout"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/signout/*"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/logout"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/logout/*"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/auth"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/auth/*"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
