@@ -48,6 +48,13 @@ function verifyAccountFreeExport(directory) {
 }
 verifyAccountFreeExport(outputDir);
 
+// Inline the recovery script before any exported app scripts can run.
+const recoveryScript = fs.readFileSync(path.join(projectRoot, 'public/account-free.js'), 'utf8');
+const html = fs.readFileSync(indexPath, 'utf8');
+if (!/<head[^>]*>/i.test(html)) throw new Error('Export has no HTML head for cache recovery.');
+fs.writeFileSync(indexPath, html.replace(/<head[^>]*>/i, head =>
+  `${head}<script>${recoveryScript}</script>`));
+
 // Keep direct links working even when the output is published without netlify.toml.
 const legacyAccountRoutes = [
   '/sign-in', '/sign-up', '/login', '/signup',
@@ -55,9 +62,11 @@ const legacyAccountRoutes = [
   '/signin', '/signin/*', '/signout', '/signout/*', '/logout', '/logout/*',
   '/auth', '/auth/*', '/(auth)', '/(auth)/*', '/sso-callback', '/forgot-password', '/reset-password',
 ];
-const redirects = legacyAccountRoutes.map(route => `${route}    /    302!`);
+const redirects = ['/service-worker.js', '/sw.js', '/expo-service-worker.js'].map(route =>
+  `${route}    /retire-service-worker.js    200!`);
+redirects.push(...legacyAccountRoutes.map(route => `${route}    /?workspace=account-free-v2    302!`));
 redirects.push('/*    /index.html   200');
 fs.writeFileSync(path.join(outputDir, '_redirects'), `${redirects.join('\n')}\n`);
 
 // Also revalidate the app shell when deploying the export directory directly.
-fs.writeFileSync(path.join(outputDir, '_headers'), '/*\n  Cache-Control: no-cache\n');
+fs.writeFileSync(path.join(outputDir, '_headers'), '/*\n  Cache-Control: no-store, no-cache, max-age=0, must-revalidate\n  Netlify-CDN-Cache-Control: no-store\n  Clear-Site-Data: "cache"\n');
