@@ -25,4 +25,7 @@ if (!fs.existsSync(indexPath) || fs.statSync(indexPath).size === 0) {
 }
 
 // Keep direct links working even when the output is published without netlify.toml.
-fs.writeFileSync(path.join(outputDir, '_redirects'), '/*    /index.html   200\n');
+const legacyAccountRoutes = ['/sign-in', '/sign-up', '/login', '/signup', '/(auth)/*'];
+const redirects = legacyAccountRoutes.map(route => `${route}    /    302!`);
+redirects.push('/*    /index.html   200');
+fs.writeFileSync(path.join(outputDir, '_redirects'), `${redirects.join('\n')}\n`);
