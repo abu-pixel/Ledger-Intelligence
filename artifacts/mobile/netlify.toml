@@ -35,6 +35,60 @@
   force = true
 
 [[redirects]]
+  from = "/sign-in/*"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/sign-up/*"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/login/*"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/signup/*"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/(auth)"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/sso-callback"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/forgot-password"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/reset-password"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Revalidate the app shell so returning visitors receive the account-free app.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "no-cache"
