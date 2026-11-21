@@ -6,11 +6,7 @@
   "outputDirectory": "artifacts/mobile/static-build",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://onrender.com"
-    },
-    {
-      "source": "/(.*)",
+      "source": "/:path((?!api/).*)",
       "destination": "/index.html"
     }
   ]
