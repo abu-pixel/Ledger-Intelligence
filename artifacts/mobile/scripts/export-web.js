@@ -24,11 +24,36 @@ if (!fs.existsSync(indexPath) || fs.statSync(indexPath).size === 0) {
   process.exit(1);
 }
 
+// Refuse to publish an old export containing the removed account screens or SDKs.
+const removedAuthMarkers = [
+  '@clerk/',
+  'netlify-identity-widget',
+  '@netlify/identity',
+  './(auth)/sign-in',
+  './(auth)/sign-up',
+];
+function verifyAccountFreeExport(directory) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const filename = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      verifyAccountFreeExport(filename);
+    } else if (/\.(?:js|html)$/.test(entry.name)) {
+      const contents = fs.readFileSync(filename, 'utf8');
+      if (removedAuthMarkers.some(marker => contents.includes(marker))) {
+        console.error('Web export contains removed authentication code; refusing to publish.');
+        process.exit(1);
+      }
+    }
+  }
+}
+verifyAccountFreeExport(outputDir);
+
 // Keep direct links working even when the output is published without netlify.toml.
 const legacyAccountRoutes = [
   '/sign-in', '/sign-up', '/login', '/signup',
   '/sign-in/*', '/sign-up/*', '/login/*', '/signup/*',
-  '/(auth)', '/(auth)/*', '/sso-callback', '/forgot-password', '/reset-password',
+  '/signin', '/signin/*', '/signout', '/signout/*', '/logout', '/logout/*',
+  '/auth', '/auth/*', '/(auth)', '/(auth)/*', '/sso-callback', '/forgot-password', '/reset-password',
 ];
 const redirects = legacyAccountRoutes.map(route => `${route}    /    302!`);
 redirects.push('/*    /index.html   200');
