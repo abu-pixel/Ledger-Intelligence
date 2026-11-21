@@ -3,130 +3,148 @@
   command = "node artifacts/mobile/scripts/export-web.js"
   publish = "artifacts/mobile/static-build"
 
+[[redirects]]
+  from = "/service-worker.js"
+  to = "/retire-service-worker.js"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/sw.js"
+  to = "/retire-service-worker.js"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/expo-service-worker.js"
+  to = "/retire-service-worker.js"
+  status = 200
+  force = true
+
 # Old account links now open the local workspace directly.
 [[redirects]]
   from = "/sign-in"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/sign-up"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/login"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/signup"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/(auth)/*"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/sign-in/*"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/sign-up/*"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/login/*"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/signup/*"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/(auth)"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/sso-callback"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/forgot-password"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/reset-password"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/signin"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/signin/*"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/signout"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/signout/*"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/logout"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/logout/*"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/auth"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
 [[redirects]]
   from = "/auth/*"
-  to = "/"
+  to = "/?workspace=account-free-v2"
   status = 302
   force = true
 
@@ -139,4 +157,6 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    Cache-Control = "no-cache"
+    Cache-Control = "no-store, no-cache, max-age=0, must-revalidate"
+    Netlify-CDN-Cache-Control = "no-store"
+    Clear-Site-Data = '"cache"'
