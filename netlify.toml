@@ -3,6 +3,37 @@
   command = "node artifacts/mobile/scripts/export-web.js"
   publish = "artifacts/mobile/static-build"
 
+# Old account links now open the local workspace directly.
+[[redirects]]
+  from = "/sign-in"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/sign-up"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/login"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/signup"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/(auth)/*"
+  to = "/"
+  status = 302
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
