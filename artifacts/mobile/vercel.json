@@ -1,0 +1,13 @@
+{
+  "framework": null,
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "buildCommand": "node scripts/export-web.js",
+  "outputDirectory": "static-build",
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index"
+    }
+  ]
+}

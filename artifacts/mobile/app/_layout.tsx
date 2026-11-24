@@ -5,6 +5,7 @@ import { setBaseUrl } from "@workspace/api-client-react";
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts } from "@expo-google-fonts/inter";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { Platform } from "react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -20,7 +21,7 @@ const queryClient = new QueryClient({
 });
 
 const apiDomain = process.env.EXPO_PUBLIC_DOMAIN?.trim();
-if (apiDomain) {
+if (apiDomain && Platform.OS !== "web") {
   setBaseUrl(/^https?:\/\//i.test(apiDomain) ? apiDomain : `https://${apiDomain}`);
 }
 
