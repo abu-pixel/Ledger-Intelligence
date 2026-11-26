@@ -4,6 +4,15 @@ Ledgerly is a production-ready mobile bookkeeping and cash-flow management appli
 
 ---
 
+## App Preview
+
+| | | |
+|:---:|:---:|:---:|
+| ![Ledgerly screenshot 1](li/Screenshot%20(16).png) | ![Ledgerly screenshot 2](li/Screenshot%20(17).png) | ![Ledgerly screenshot 3](li/Screenshot%20(18).png) |
+| ![Ledgerly screenshot 4](li/Screenshot%20(19).png) | ![Ledgerly screenshot 5](li/Screenshot%20(20).png) | ![Ledgerly screenshot 6](li/Screenshot%20(21).png) |
+
+---
+
 ## Key Features & Privacy
 
 - **No Account Required**: The app opens straight into a private, local-first workspace with no sign-up, sign-in, or account linkage.
