@@ -1,0 +1,131 @@
+name: CI - typecheck, build & performance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PORT: "3000"
+  BASE_PATH: "/"
+  EXPO_PUBLIC_DOMAIN: localhost
+  CI: "true"
+
+jobs:
+  verify:
+    name: Typecheck, build & benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (timed)
+        run: |
+          start=$(date +%s%3N)
+          pnpm run typecheck
+          echo "TYPECHECK_MS=$(( $(date +%s%3N) - start ))" >> "$GITHUB_ENV"
+
+      - name: Build (timed)
+        run: |
+          start=$(date +%s%3N)
+          pnpm run build
+          echo "BUILD_MS=$(( $(date +%s%3N) - start ))" >> "$GITHUB_ENV"
+
+      - name: API smoke test and latency
+        run: |
+          PORT=8137 node artifacts/api-server/dist/index.mjs > "$RUNNER_TEMP/api.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 80); do
+            if curl -fsS "http://127.0.0.1:8137/api/healthz" > "$RUNNER_TEMP/health.json" 2>/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 0.25
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "HEALTH_STATUS=not-ready" >> "$GITHUB_ENV"
+            cat "$RUNNER_TEMP/api.log"
+            exit 1
+          fi
+          echo "HEALTH_STATUS=ok" >> "$GITHUB_ENV"
+          echo "HEALTH_BODY=$(cat "$RUNNER_TEMP/health.json")" >> "$GITHUB_ENV"
+          total=0
+          min=999999
+          max=0
+          for i in $(seq 1 20); do
+            seconds=$(curl -s -o /dev/null -w '%{time_total}' "http://127.0.0.1:8137/api/healthz")
+            ms=$(awk -v t="$seconds" 'BEGIN { printf "%.0f", t * 1000 }')
+            total=$(( total + ms ))
+            if [ "$ms" -lt "$min" ]; then min=$ms; fi
+            if [ "$ms" -gt "$max" ]; then max=$ms; fi
+          done
+          echo "HEALTH_AVG_MS=$(( total / 20 ))" >> "$GITHUB_ENV"
+          echo "HEALTH_MIN_MS=$min" >> "$GITHUB_ENV"
+          echo "HEALTH_MAX_MS=$max" >> "$GITHUB_ENV"
+          status=$(curl -s -o "$RUNNER_TEMP/ai-status.json" -w '%{http_code}' "http://127.0.0.1:8137/api/ai/status" || true)
+          echo "AI_STATUS_HTTP=$status" >> "$GITHUB_ENV"
+          echo "AI_STATUS_BODY=$(cat "$RUNNER_TEMP/ai-status.json")" >> "$GITHUB_ENV"
+
+      - name: Write performance report
+        if: always()
+        run: |
+          report="perf-metrics.md"
+          {
+            echo "# CI performance report"
+            echo
+            echo "| Metric | Value |"
+            echo "| --- | --- |"
+            echo "| Commit | \`${GITHUB_SHA}\` |"
+            echo "| Typecheck | ${TYPECHECK_MS:-n/a} ms |"
+            echo "| Full build | ${BUILD_MS:-n/a} ms |"
+            echo "| Health check | ${HEALTH_STATUS:-n/a} (${HEALTH_BODY:-n/a}) |"
+            echo "| Health latency (20 reqs) | avg ${HEALTH_AVG_MS:-n/a} ms / min ${HEALTH_MIN_MS:-n/a} ms / max ${HEALTH_MAX_MS:-n/a} ms |"
+            echo "| AI status | HTTP ${AI_STATUS_HTTP:-n/a} ${AI_STATUS_BODY:-n/a} |"
+            echo
+            echo "## Artifact sizes"
+            echo
+            echo "| Artifact | Files | Size |"
+            echo "| --- | ---: | ---: |"
+            for dir in artifacts/api-server/dist artifacts/mockup-sandbox/dist artifacts/mobile/static-build; do
+              if [ -d "$dir" ]; then
+                files=$(find "$dir" -type f | wc -l)
+                size=$(du -sh "$dir" | cut -f1)
+                echo "| \`$dir\` | $files | $size |"
+              fi
+            done
+          } > "$report"
+          cat "$report" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-and-metrics
+          if-no-files-found: warn
+          path: |
+            perf-metrics.md
+            artifacts/api-server/dist
+            artifacts/mockup-sandbox/dist
+            artifacts/mobile/static-build
